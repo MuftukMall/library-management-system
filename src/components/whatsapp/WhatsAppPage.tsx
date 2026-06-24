@@ -91,10 +91,20 @@ export function WhatsAppPage() {
   ];
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div>
-        <h3 className="text-lg font-semibold">WhatsApp Integration</h3>
-        <p className="text-sm text-muted-foreground">Send messages and reminders to members via WhatsApp</p>
+    <div className="space-y-6 max-w-4xl page-enter">
+      {/* Gradient header */}
+      <div className="rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 p-4 md:p-5 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+              <MessageCircle className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">WhatsApp</h2>
+              <p className="text-sm text-white/70">Send messages and manage reminders</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Connection Status */}

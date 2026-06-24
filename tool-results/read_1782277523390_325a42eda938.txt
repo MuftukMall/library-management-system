@@ -1,0 +1,470 @@
+   200→   200→   200→  };
+   201→   201→   201→
+   202→   202→   202→  // Mutations
+   203→   203→   203→  const addMutation = useMutation({
+   204→   204→   204→    mutationFn: async () => {
+   205→   205→   205→      setFormLoading(true);
+   206→   206→   206→      const res = await fetch('/api/members', {
+   207→   207→   207→        method: 'POST', headers: { 'Content-Type': 'application/json' },
+   208→   208→   208→        body: JSON.stringify(form),
+   209→   209→   209→      });
+   210→   210→   210→      const data = await res.json();
+   211→   211→   211→      if (!res.ok) throw new Error(data.error || 'Failed to add member');
+   212→   212→   212→      return data;
+   213→   213→   213→    },
+   214→   214→   214→    onSuccess: () => { toast.success('Member added successfully'); setAddOpen(false); resetForm(); queryClient.invalidateQueries({ queryKey: ['members'] }); },
+   215→   215→   215→    onError: (e) => toast.error(e.message),
+   216→   216→   216→    onSettled: () => setFormLoading(false),
+   217→   217→   217→  });
+   218→   218→   218→
+   219→   219→   219→  const editMutation = useMutation({
+   220→   220→   220→    mutationFn: async () => {
+   221→   221→   221→      setFormLoading(true);
+   222→   222→   222→      const res = await fetch(`/api/members/${selectedMember!.id}`, {
+   223→   223→   223→        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+   224→   224→   224→        body: JSON.stringify(form),
+   225→   225→   225→      });
+   226→   226→   226→      const data = await res.json();
+   227→   227→   227→      if (!res.ok) throw new Error(data.error || 'Failed to update member');
+   228→   228→   228→      return data;
+   229→   229→   229→    },
+   230→   230→   230→    onSuccess: () => { toast.success('Member updated successfully'); setEditOpen(false); queryClient.invalidateQueries({ queryKey: ['members'] }); },
+   231→   231→   231→    onError: (e) => toast.error(e.message),
+   232→   232→   232→    onSettled: () => setFormLoading(false),
+   233→   233→   233→  });
+   234→   234→   234→
+   235→   235→   235→  const deleteMutation = useMutation({
+   236→   236→   236→    mutationFn: async () => {
+   237→   237→   237→      const res = await fetch(`/api/members/${selectedMember!.id}`, { method: 'DELETE' });
+   238→   238→   238→      if (!res.ok) throw new Error('Failed to delete member');
+   239→   239→   239→    },
+   240→   240→   240→    onSuccess: () => { toast.success('Member deleted successfully'); setDeleteOpen(false); queryClient.invalidateQueries({ queryKey: ['members'] }); },
+   241→   241→   241→    onError: () => toast.error('Failed to delete member'),
+   242→   242→   242→  });
+   243→   243→   243→
+   244→   244→   244→  const renewMutation = useMutation({
+   245→   245→   245→    mutationFn: async () => {
+   246→   246→   246→      setFormLoading(true);
+   247→   247→   247→      const res = await fetch(`/api/members/${selectedMember!.id}/renew`, {
+   248→   248→   248→        method: 'POST', headers: { 'Content-Type': 'application/json' },
+   249→   249→   249→        body: JSON.stringify(renewForm),
+   250→   250→   250→      });
+   251→   251→   251→      const data = await res.json();
+   252→   252→   252→      if (!res.ok) throw new Error(data.error || 'Failed to renew');
+   253→   253→   253→      return data;
+   254→   254→   254→    },
+   255→   255→   255→    onSuccess: () => { toast.success('Membership renewed successfully'); setRenewOpen(false); queryClient.invalidateQueries({ queryKey: ['members'] }); },
+   256→   256→   256→    onError: (e) => toast.error(e.message),
+   257→   257→   257→    onSettled: () => setFormLoading(false),
+   258→   258→   258→  });
+   259→   259→   259→
+   260→   260→   260→  const handleExport = () => {
+   261→   261→   261→    window.open('/api/export/members', '_blank');
+   262→   262→   262→    toast.success('Exporting members to CSV...');
+   263→   263→   263→  };
+   264→   264→   264→
+   265→   265→   265→  const allSeats = availableSeats || [];
+   266→   266→   266→
+   267→   267→   267→  const renderMemberForm = (isEdit: boolean) => {
+   268→   268→   268→    const sects = isEdit ? (editSections || []) : (sections || []);
+   269→   269→   269→    const seats = allSeats;
+   270→   270→   270→
+   271→   271→   271→    return (
+   272→   272→   272→      <div className="grid gap-4 py-2">
+   273→   273→   273→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   274→   274→   274→          <div className="space-y-2">
+   275→   275→   275→            <Label>Name *</Label>
+   276→   276→   276→            <Input value={form.name} onChange={(e) => updateForm('name', e.target.value)} placeholder="Member name" />
+   277→   277→   277→          </div>
+   278→   278→   278→          <div className="space-y-2">
+   279→   279→   279→            <Label>Phone *</Label>
+   280→   280→   280→            <Input value={form.phone} onChange={(e) => updateForm('phone', e.target.value)} placeholder="Phone number" />
+   281→   281→   281→          </div>
+   282→   282→   282→        </div>
+   283→   283→   283→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   284→   284→   284→          <div className="space-y-2">
+   285→   285→   285→            <Label>WhatsApp</Label>
+   286→   286→   286→            <Input value={form.whatsapp} onChange={(e) => updateForm('whatsapp', e.target.value)} placeholder="WhatsApp number" />
+   287→   287→   287→          </div>
+   288→   288→   288→          <div className="space-y-2">
+   289→   289→   289→            <Label>Address</Label>
+   290→   290→   290→            <Input value={form.address} onChange={(e) => updateForm('address', e.target.value)} placeholder="Address" />
+   291→   291→   291→          </div>
+   292→   292→   292→        </div>
+   293→   293→   293→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   294→   294→   294→          <div className="space-y-2">
+   295→   295→   295→            <Label>Join Date</Label>
+   296→   296→   296→            <Popover>
+   297→   297→   297→              <PopoverTrigger asChild>
+   298→   298→   298→                <Button variant="outline" className="w-full justify-start text-left font-normal">
+   299→   299→   299→                  {form.joinDate ? format(new Date(form.joinDate), 'PPP') : 'Pick a date'}
+   300→   300→   300→                </Button>
+   301→   301→   301→              </PopoverTrigger>
+   302→   302→   302→              <PopoverContent className="w-auto p-0" align="start">
+   303→   303→   303→                <Calendar mode="single" selected={form.joinDate ? new Date(form.joinDate) : undefined} onSelect={(d) => d && updateForm('joinDate', format(d, 'yyyy-MM-dd'))} />
+   304→   304→   304→              </PopoverContent>
+   305→   305→   305→            </Popover>
+   306→   306→   306→          </div>
+   307→   307→   307→          <div className="space-y-2">
+   308→   308→   308→            <Label>Expiry Date</Label>
+   309→   309→   309→            <Popover>
+   310→   310→   310→              <PopoverTrigger asChild>
+   311→   311→   311→                <Button variant="outline" className="w-full justify-start text-left font-normal">
+   312→   312→   312→                  {form.expiryDate ? format(new Date(form.expiryDate), 'PPP') : 'Pick a date'}
+   313→   313→   313→                </Button>
+   314→   314→   314→              </PopoverTrigger>
+   315→   315→   315→              <PopoverContent className="w-auto p-0" align="start">
+   316→   316→   316→                <Calendar mode="single" selected={form.expiryDate ? new Date(form.expiryDate) : undefined} onSelect={(d) => d && updateForm('expiryDate', format(d, 'yyyy-MM-dd'))} />
+   317→   317→   317→              </PopoverContent>
+   318→   318→   318→            </Popover>
+   319→   319→   319→          </div>
+   320→   320→   320→        </div>
+   321→   321→   321→        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   322→   322→   322→          <div className="space-y-2">
+   323→   323→   323→            <Label>Floor</Label>
+   324→   324→   324→            <Select value={form.floorId} onValueChange={(v) => updateForm('floorId', v)}>
+   325→   325→   325→              <SelectTrigger><SelectValue placeholder="Select floor" /></SelectTrigger>
+   326→   326→   326→              <SelectContent>
+   327→   327→   327→                {floors?.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+   328→   328→   328→              </SelectContent>
+   329→   329→   329→            </Select>
+   330→   330→   330→          </div>
+   331→   331→   331→          <div className="space-y-2">
+   332→   332→   332→            <Label>Section</Label>
+   333→   333→   333→            <Select value={form.sectionId} onValueChange={(v) => updateForm('sectionId', v)} disabled={!form.floorId}>
+   334→   334→   334→              <SelectTrigger><SelectValue placeholder="Select section" /></SelectTrigger>
+   335→   335→   335→              <SelectContent>
+   336→   336→   336→                {sects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+   337→   337→   337→              </SelectContent>
+   338→   338→   338→            </Select>
+   339→   339→   339→          </div>
+   340→   340→   340→          <div className="space-y-2">
+   341→   341→   341→            <Label>Seat</Label>
+   342→   342→   342→            <Select value={form.seatId} onValueChange={(v) => updateForm('seatId', v)} disabled={!form.sectionId}>
+   343→   343→   343→              <SelectTrigger><SelectValue placeholder="Select seat" /></SelectTrigger>
+   344→   344→   344→              <SelectContent>
+   345→   345→   345→                {Array.isArray(availableSeats) && availableSeats.map((s: { id: string; seatNumber: string }) => (
+   346→   346→   346→                  <SelectItem key={s.id} value={s.id}>{s.seatNumber}</SelectItem>
+   347→   347→   347→                ))}
+   348→   348→   348→              </SelectContent>
+   349→   349→   349→            </Select>
+   350→   350→   350→          </div>
+   351→   351→   351→        </div>
+   352→   352→   352→        <div className="space-y-2">
+   353→   353→   353→          <Label>Fee (₹)</Label>
+   354→   354→   354→          <Input type="number" value={form.fee} onChange={(e) => updateForm('fee', Number(e.target.value))} placeholder="0" />
+   355→   355→   355→        </div>
+   356→   356→   356→      </div>
+   357→   357→   357→    );
+   358→   358→   358→  };
+   359→   359→   359→
+   360→   360→   360→  return (
+   361→   361→   361→    <div className="space-y-4">
+   362→   362→   362→      {/* Header with search and filters */}
+   363→   363→   363→      <div className="flex flex-col sm:flex-row gap-3">
+   364→   364→   364→        <div className="relative flex-1">
+   365→   365→   365→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   366→   366→   366→          <Input
+   367→   367→   367→            placeholder="Search members..."
+   368→   368→   368→            value={search}
+   369→   369→   369→            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+   370→   370→   370→            className="pl-9"
+   371→   371→   371→          />
+   372→   372→   372→        </div>
+   373→   373→   373→        <div className="flex gap-2 flex-wrap">
+   374→   374→   374→          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+   375→   375→   375→            <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+   376→   376→   376→            <SelectContent>
+   377→   377→   377→              <SelectItem value="all">All Status</SelectItem>
+   378→   378→   378→              <SelectItem value="active">Active</SelectItem>
+   379→   379→   379→              <SelectItem value="expired">Expired</SelectItem>
+   380→   380→   380→            </SelectContent>
+   381→   381→   381→          </Select>
+   382→   382→   382→          <Select value={floorFilter} onValueChange={(v) => { setFloorFilter(v); setSectionFilter('all'); setPage(1); }}>
+   383→   383→   383→            <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+   384→   384→   384→            <SelectContent>
+   385→   385→   385→              <SelectItem value="all">All Floors</SelectItem>
+   386→   386→   386→              {floors?.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+   387→   387→   387→            </SelectContent>
+   388→   388→   388→          </Select>
+   389→   389→   389→          <Button size="sm" variant="outline" onClick={handleExport}>
+   390→   390→   390→            <Download className="h-4 w-4 mr-1" /> CSV
+   391→   391→   391→          </Button>
+   392→   392→   392→          <Button size="sm" onClick={() => { resetForm(); setAddOpen(true); }}>
+   393→   393→   393→            <Plus className="h-4 w-4 mr-1" /> Add Member
+   394→   394→   394→          </Button>
+   395→   395→   395→        </div>
+   396→   396→   396→      </div>
+   397→   397→   397→
+   398→   398→   398→      {/* Table */}
+   399→   399→   399→      <Card>
+   400→   400→   400→        <CardContent className="p-0">
+   401→   401→   401→          {isLoading ? (
+   402→   402→   402→            <div className="p-4 space-y-3">
+   403→   403→   403→              {Array.from({ length: 5 }).map((_, i) => (
+   404→   404→   404→                <div key={i} className="flex gap-4">
+   405→   405→   405→                  <Skeleton className="h-5 w-32" />
+   406→   406→   406→                  <Skeleton className="h-5 w-24" />
+   407→   407→   407→                  <Skeleton className="h-5 w-20" />
+   408→   408→   408→                  <Skeleton className="h-5 w-24" />
+   409→   409→   409→                  <Skeleton className="h-5 w-16" />
+   410→   410→   410→                </div>
+   411→   411→   411→              ))}
+   412→   412→   412→            </div>
+   413→   413→   413→          ) : members.length === 0 ? (
+   414→   414→   414→            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+   415→   415→   415→              <Users className="h-12 w-12 mb-3 opacity-30" />
+   416→   416→   416→              <p className="text-sm">No members found</p>
+   417→   417→   417→              <p className="text-xs mt-1">Try adjusting your search or filters</p>
+   418→   418→   418→            </div>
+   419→   419→   419→          ) : (
+   420→   420→   420→            <>
+   421→   421→   421→              <div className="overflow-x-auto">
+   422→   422→   422→                <Table>
+   423→   423→   423→                  <TableHeader>
+   424→   424→   424→                    <TableRow>
+   425→   425→   425→                      <TableHead>Name</TableHead>
+   426→   426→   426→                      <TableHead className="hidden sm:table-cell">Phone</TableHead>
+   427→   427→   427→                      <TableHead className="hidden md:table-cell">Seat</TableHead>
+   428→   428→   428→                      <TableHead className="hidden lg:table-cell">Expiry Date</TableHead>
+   429→   429→   429→                      <TableHead>Status</TableHead>
+   430→   430→   430→                      <TableHead className="text-right">Actions</TableHead>
+   431→   431→   431→                    </TableRow>
+   432→   432→   432→                  </TableHeader>
+   433→   433→   433→                  <TableBody>
+   434→   434→   434→                    {members.map((member: Member) => (
+   435→   435→   435→                      <TableRow key={member.id}>
+   436→   436→   436→                        <TableCell className="font-medium">{member.name}</TableCell>
+   437→   437→   437→                        <TableCell className="hidden sm:table-cell">{member.phone}</TableCell>
+   438→   438→   438→                        <TableCell className="hidden md:table-cell">{member.seatNumber || '—'}</TableCell>
+   439→   439→   439→                        <TableCell className="hidden lg:table-cell">
+   440→   440→   440→                          {member.expiryDate ? format(new Date(member.expiryDate), 'dd MMM yyyy') : '—'}
+   441→   441→   441→                        </TableCell>
+   442→   442→   442→                        <TableCell>
+   443→   443→   443→                          <Badge
+   444→   444→   444→                            variant={member.status === 'active' ? 'default' : 'destructive'}
+   445→   445→   445→                            className={member.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : ''}
+   446→   446→   446→                          >
+   447→   447→   447→                            {member.status === 'active' ? 'Active' : 'Expired'}
+   448→   448→   448→                          </Badge>
+   449→   449→   449→                        </TableCell>
+   450→   450→   450→                        <TableCell className="text-right">
+   451→   451→   451→                          <div className="flex items-center justify-end gap-1">
+   452→   452→   452→                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openView(member)} title="View">
+   453→   453→   453→                              <Eye className="h-4 w-4" />
+   454→   454→   454→                            </Button>
+   455→   455→   455→                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(member)} title="Edit">
+   456→   456→   456→                              <Pencil className="h-4 w-4" />
+   457→   457→   457→                            </Button>
+   458→   458→   458→                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openRenew(member)} title="Renew">
+   459→   459→   459→                              <RefreshCw className="h-4 w-4" />
+   460→   460→   460→                            </Button>
+   461→   461→   461→                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelectedMember(member); setDeleteOpen(true); }} title="Delete">
+   462→   462→   462→                              <Trash2 className="h-4 w-4" />
+   463→   463→   463→                            </Button>
+   464→   464→   464→                          </div>
+   465→   465→   465→                        </TableCell>
+   466→   466→   466→                      </TableRow>
+   467→   467→   467→                    ))}
+   468→   468→   468→                  </TableBody>
+   469→   469→   469→                </Table>
+   470→   470→   470→              </div>
+   471→   471→   471→
+   472→   472→   472→              {/* Pagination */}
+   473→   473→   473→              {totalPages > 1 && (
+   474→   474→   474→                <div className="flex items-center justify-between px-4 py-3 border-t">
+   475→   475→   475→                  <p className="text-sm text-muted-foreground">
+   476→   476→   476→                    Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+   477→   477→   477→                  </p>
+   478→   478→   478→                  <div className="flex items-center gap-2">
+   479→   479→   479→                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+   480→   480→   480→                      <ChevronLeft className="h-4 w-4" />
+   481→   481→   481→                    </Button>
+   482→   482→   482→                    <span className="text-sm">{page} / {totalPages}</span>
+   483→   483→   483→                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+   484→   484→   484→                      <ChevronRight className="h-4 w-4" />
+   485→   485→   485→                    </Button>
+   486→   486→   486→                  </div>
+   487→   487→   487→                </div>
+   488→   488→   488→              )}
+   489→   489→   489→            </>
+   490→   490→   490→          )}
+   491→   491→   491→        </CardContent>
+   492→   492→   492→      </Card>
+   493→   493→   493→
+   494→   494→   494→      {/* Add Member Dialog */}
+   495→   495→   495→      <Dialog open={addOpen} onOpenChange={(o) => { setAddOpen(o); if (!o) resetForm(); }}>
+   496→   496→   496→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar">
+   497→   497→   497→          <DialogHeader>
+   498→   498→   498→            <DialogTitle>Add New Member</DialogTitle>
+   499→   499→   499→          </DialogHeader>
+   500→   500→   500→          {renderMemberForm(false)}
+   501→   501→   501→          <DialogFooter>
+   502→   502→   502→            <Button variant="outline" onClick={() => { setAddOpen(false); resetForm(); }}>Cancel</Button>
+   503→   503→   503→            <Button onClick={() => addMutation.mutate()} disabled={formLoading || !form.name || !form.phone}>
+   504→   504→   504→              {formLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+   505→   505→   505→              Add Member
+   506→   506→   506→            </Button>
+   507→   507→   507→          </DialogFooter>
+   508→   508→   508→        </DialogContent>
+   509→   509→   509→      </Dialog>
+   510→   510→   510→
+   511→   511→   511→      {/* Edit Member Dialog */}
+   512→   512→   512→      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+   513→   513→   513→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar">
+   514→   514→   514→          <DialogHeader>
+   515→   515→   515→            <DialogTitle>Edit Member</DialogTitle>
+   516→   516→   516→          </DialogHeader>
+   517→   517→   517→          {renderMemberForm(true)}
+   518→   518→   518→          <DialogFooter>
+   519→   519→   519→            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+   520→   520→   520→            <Button onClick={() => editMutation.mutate()} disabled={formLoading}>
+   521→   521→   521→              {formLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+   522→   522→   522→              Save Changes
+   523→   523→   523→            </Button>
+   524→   524→   524→          </DialogFooter>
+   525→   525→   525→        </DialogContent>
+   526→   526→   526→      </Dialog>
+   527→   527→   527→
+   528→   528→   528→      {/* View Member Dialog */}
+   529→   529→   529→      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+   530→   530→   530→        <DialogContent className="max-w-lg max-h-[90vh]">
+   531→   531→   531→          <DialogHeader>
+   532→   532→   532→            <DialogTitle>Member Details</DialogTitle>
+   533→   533→   533→          </DialogHeader>
+   534→   534→   534→          {viewLoading ? (
+   535→   535→   535→            <div className="space-y-3 p-4">
+   536→   536→   536→              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-5 w-full" />)}
+   537→   537→   537→            </div>
+   538→   538→   538→          ) : viewMember ? (
+   539→   539→   539→            <ScrollArea className="max-h-[60vh] pr-2 custom-scrollbar">
+   540→   540→   540→              <div className="space-y-4">
+   541→   541→   541→                <div className="grid grid-cols-2 gap-3 text-sm">
+   542→   542→   542→                  <div><span className="text-muted-foreground">Name:</span><p className="font-medium">{viewMember.name}</p></div>
+   543→   543→   543→                  <div><span className="text-muted-foreground">Phone:</span><p className="font-medium">{viewMember.phone}</p></div>
+   544→   544→   544→                  <div><span className="text-muted-foreground">WhatsApp:</span><p className="font-medium">{viewMember.whatsapp || '—'}</p></div>
+   545→   545→   545→                  <div><span className="text-muted-foreground">Address:</span><p className="font-medium">{viewMember.address || '—'}</p></div>
+   546→   546→   546→                  <div><span className="text-muted-foreground">Join Date:</span><p className="font-medium">{viewMember.joinDate ? format(new Date(viewMember.joinDate), 'dd MMM yyyy') : '—'}</p></div>
+   547→   547→   547→                  <div><span className="text-muted-foreground">Expiry Date:</span><p className="font-medium">{viewMember.expiryDate ? format(new Date(viewMember.expiryDate), 'dd MMM yyyy') : '—'}</p></div>
+   548→   548→   548→                  <div><span className="text-muted-foreground">Floor:</span><p className="font-medium">{viewMember.floorName || '—'}</p></div>
+   549→   549→   549→                  <div><span className="text-muted-foreground">Section:</span><p className="font-medium">{viewMember.sectionName || '—'}</p></div>
+   550→   550→   550→                  <div><span className="text-muted-foreground">Seat:</span><p className="font-medium">{viewMember.seatNumber || '—'}</p></div>
+   551→   551→   551→                  <div><span className="text-muted-foreground">Fee:</span><p className="font-medium">₹{viewMember.fee}</p></div>
+   552→   552→   552→                  <div><span className="text-muted-foreground">Status:</span>
+   553→   553→   553→                    <p>
+   554→   554→   554→                      <Badge variant={viewMember.status === 'active' ? 'default' : 'destructive'}
+   555→   555→   555→                        className={viewMember.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : ''}>
+   556→   556→   556→                        {viewMember.status === 'active' ? 'Active' : 'Expired'}
+   557→   557→   557→                      </Badge>
+   558→   558→   558→                    </p>
+   559→   559→   559→                  </div>
+   560→   560→   560→                </div>
+   561→   561→   561→
+   562→   562→   562→                {/* Payment History */}
+   563→   563→   563→                {viewMember.payments && viewMember.payments.length > 0 && (
+   564→   564→   564→                  <div>
+   565→   565→   565→                    <h4 className="text-sm font-semibold mb-2">Payment History</h4>
+   566→   566→   566→                    <div className="max-h-48 overflow-y-auto custom-scrollbar">
+   567→   567→   567→                      <Table>
+   568→   568→   568→                        <TableHeader>
+   569→   569→   569→                          <TableRow>
+   570→   570→   570→                            <TableHead>Date</TableHead>
+   571→   571→   571→                            <TableHead>Amount</TableHead>
+   572→   572→   572→                            <TableHead>Valid Till</TableHead>
+   573→   573→   573→                          </TableRow>
+   574→   574→   574→                        </TableHeader>
+   575→   575→   575→                        <TableBody>
+   576→   576→   576→                          {viewMember.payments.map((p: { id: string; paymentDate: string; amount: number; validTill: string }) => (
+   577→   577→   577→                            <TableRow key={p.id}>
+   578→   578→   578→                              <TableCell className="text-xs">{p.paymentDate ? format(new Date(p.paymentDate), 'dd MMM yyyy') : '—'}</TableCell>
+   579→   579→   579→                              <TableCell className="text-xs">₹{p.amount}</TableCell>
+   580→   580→   580→                              <TableCell className="text-xs">{p.validTill ? format(new Date(p.validTill), 'dd MMM yyyy') : '—'}</TableCell>
+   581→   581→   581→                            </TableRow>
+   582→   582→   582→                          ))}
+   583→   583→   583→                        </TableBody>
+   584→   584→   584→                      </Table>
+   585→   585→   585→                    </div>
+   586→   586→   586→                  </div>
+   587→   587→   587→                )}
+   588→   588→   588→              </div>
+   589→   589→   589→            </ScrollArea>
+   590→   590→   590→          ) : null}
+   591→   591→   591→          <DialogFooter>
+   592→   592→   592→            <Button variant="outline" onClick={() => setViewOpen(false)}>Close</Button>
+   593→   593→   593→            {selectedMember && (
+   594→   594→   594→              <Button onClick={() => { setViewOpen(false); openRenew(selectedMember); }}>
+   595→   595→   595→                <RefreshCw className="h-4 w-4 mr-1" /> Renew
+   596→   596→   596→              </Button>
+   597→   597→   597→            )}
+   598→   598→   598→          </DialogFooter>
+   599→   599→   599→        </DialogContent>
+   600→   600→   600→      </Dialog>
+   601→   601→   601→
+   602→   602→   602→      {/* Renew Dialog */}
+   603→   603→   603→      <Dialog open={renewOpen} onOpenChange={setRenewOpen}>
+   604→   604→   604→        <DialogContent className="max-w-sm">
+   605→   605→   605→          <DialogHeader>
+   606→   606→   606→            <DialogTitle>Renew Membership</DialogTitle>
+   607→   607→   607→          </DialogHeader>
+   608→   608→   608→          <div className="grid gap-4 py-2">
+   609→   609→   609→            <div className="space-y-2">
+   610→   610→   610→              <Label>Amount (₹)</Label>
+   611→   611→   611→              <Input type="number" value={renewForm.amount} onChange={(e) => setRenewForm((p) => ({ ...p, amount: Number(e.target.value) }))} />
+   612→   612→   612→            </div>
+   613→   613→   613→            <div className="space-y-2">
+   614→   614→   614→              <Label>Payment Date</Label>
+   615→   615→   615→              <Popover>
+   616→   616→   616→                <PopoverTrigger asChild>
+   617→   617→   617→                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+   618→   618→   618→                    {renewForm.paymentDate ? format(new Date(renewForm.paymentDate), 'PPP') : 'Pick a date'}
+   619→   619→   619→                  </Button>
+   620→   620→   620→                </PopoverTrigger>
+   621→   621→   621→                <PopoverContent className="w-auto p-0" align="start">
+   622→   622→   622→                  <Calendar mode="single" selected={new Date(renewForm.paymentDate)} onSelect={(d) => d && setRenewForm((p) => ({ ...p, paymentDate: format(d, 'yyyy-MM-dd') }))} />
+   623→   623→   623→                </PopoverContent>
+   624→   624→   624→              </Popover>
+   625→   625→   625→            </div>
+   626→   626→   626→            <div className="space-y-2">
+   627→   627→   627→              <Label>Valid Till</Label>
+   628→   628→   628→              <Popover>
+   629→   629→   629→                <PopoverTrigger asChild>
+   630→   630→   630→                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+   631→   631→   631→                    {renewForm.validTill ? format(new Date(renewForm.validTill), 'PPP') : 'Pick a date'}
+   632→   632→   632→                  </Button>
+   633→   633→   633→                </PopoverTrigger>
+   634→   634→   634→                <PopoverContent className="w-auto p-0" align="start">
+   635→   635→   635→                  <Calendar mode="single" selected={renewForm.validTill ? new Date(renewForm.validTill) : undefined} onSelect={(d) => d && setRenewForm((p) => ({ ...p, validTill: format(d, 'yyyy-MM-dd') }))} />
+   636→   636→   636→                </PopoverContent>
+   637→   637→   637→              </Popover>
+   638→   638→   638→            </div>
+   639→   639→   639→          </div>
+   640→   640→   640→          <DialogFooter>
+   641→   641→   641→            <Button variant="outline" onClick={() => setRenewOpen(false)}>Cancel</Button>
+   642→   642→   642→            <Button onClick={() => renewMutation.mutate()} disabled={formLoading}>
+   643→   643→   643→              {formLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+   644→   644→   644→              Renew
+   645→   645→   645→            </Button>
+   646→   646→   646→          </DialogFooter>
+   647→   647→   647→        </DialogContent>
+   648→   648→   648→      </Dialog>
+   649→   649→   649→
+   650→   650→   650→      {/* Delete Confirmation */}
+   651→   651→   651→      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+   652→   652→   652→        <AlertDialogContent>
+   653→   653→   653→          <AlertDialogHeader>
+   654→   654→   654→            <AlertDialogTitle>Delete Member</AlertDialogTitle>
+   655→   655→   655→            <AlertDialogDescription>
+   656→   656→   656→              Are you sure you want to delete {selectedMember?.name}? This action cannot be undone.
+   657→   657→   657→            </AlertDialogDescription>
+   658→   658→   658→          </AlertDialogHeader>
+   659→   659→   659→          <AlertDialogFooter>
+   660→   660→   660→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   661→   661→   661→            <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-white hover:bg-destructive/90">
+   662→   662→   662→              Delete
+   663→   663→   663→            </AlertDialogAction>
+   664→   664→   664→          </AlertDialogFooter>
+   665→   665→   665→        </AlertDialogContent>
+   666→   666→   666→      </AlertDialog>
+   667→   667→   667→    </div>
+   668→   668→   668→  );
+   669→   669→   669→}

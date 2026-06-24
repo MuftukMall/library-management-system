@@ -54,6 +54,8 @@ import {
   Loader2,
   Search,
   Eye,
+  Check,
+  User as UserIcon,
 } from 'lucide-react';
 
 interface Seat {
@@ -141,6 +143,11 @@ export function SeatsPage() {
     return acc;
   }, {});
 
+  // Summary counts
+  const totalSeats = seats.length;
+  const occupiedSeats = seats.filter((s) => s.status === 'occupied').length;
+  const availableSeatsCount = totalSeats - occupiedSeats;
+
   // Mutations
   const addMutation = useMutation({
     mutationFn: async () => {
@@ -215,62 +222,93 @@ export function SeatsPage() {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold">Seats</h3>
-          <p className="text-sm text-muted-foreground">Manage seat assignments and layout</p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <div className="flex border rounded-lg overflow-hidden">
-            <Button
-              variant={viewMode === 'map' ? 'default' : 'ghost'}
-              size="sm"
-              className="rounded-none"
-              onClick={() => setViewMode('map')}
-            >
-              <Map className="h-4 w-4 mr-1" /> Map
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              className="rounded-none"
-              onClick={() => setViewMode('list')}
-            >
-              <List className="h-4 w-4 mr-1" /> List
+    <div className="space-y-4 page-enter">
+      {/* Gradient header */}
+      <div className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 p-4 md:p-5 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold">Seats</h2>
+            <p className="text-sm text-white/70 mt-0.5">Manage seat assignments and layout</p>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => { setForm({ seatNumber: '', floorId: '', sectionId: '' }); setAddOpen(true); }}
+              className="bg-white/20 hover:bg-white/30 text-white border-0">
+              <Plus className="h-4 w-4 mr-1" /> Add Seat
             </Button>
           </div>
-          <Button size="sm" onClick={() => { setForm({ seatNumber: '', floorId: '', sectionId: '' }); setAddOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1" /> Add Seat
-          </Button>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
-        <Select value={floorFilter} onValueChange={(v) => { setFloorFilter(v); setSectionFilter('all'); }}>
-          <SelectTrigger className="w-[130px]"><SelectValue placeholder="All Floors" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Floors</SelectItem>
-            {floors.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={sectionFilter} onValueChange={setSectionFilter}>
-          <SelectTrigger className="w-[130px]"><SelectValue placeholder="All Sections" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Sections</SelectItem>
-            {availableSections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="available">Available</SelectItem>
-            <SelectItem value="occupied">Occupied</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Summary bar */}
+      {!isLoading && seats.length > 0 && (
+        <div className="flex items-center gap-4 sm:gap-6 px-1 text-sm">
+          <span className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40" />
+            <span className="text-muted-foreground">{totalSeats} Total</span>
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+            <span className="text-muted-foreground">{occupiedSeats} Occupied</span>
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <span className="text-muted-foreground">{availableSeatsCount} Available</span>
+          </span>
+        </div>
+      )}
+
+      {/* Filters & View Toggle */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex gap-2 flex-wrap">
+          <Select value={floorFilter} onValueChange={(v) => { setFloorFilter(v); setSectionFilter('all'); }}>
+            <SelectTrigger className="w-[130px]"><SelectValue placeholder="All Floors" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Floors</SelectItem>
+              {floors.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={sectionFilter} onValueChange={setSectionFilter}>
+            <SelectTrigger className="w-[130px]"><SelectValue placeholder="All Sections" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sections</SelectItem>
+              {availableSections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="available">Available</SelectItem>
+              <SelectItem value="occupied">Occupied</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Segmented control toggle */}
+        <div className="inline-flex items-center rounded-lg border bg-muted/50 p-0.5 gap-0.5">
+          <button
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+              viewMode === 'map'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => setViewMode('map')}
+          >
+            <Map className="w-3.5 h-3.5" />
+            Map
+          </button>
+          <button
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+              viewMode === 'list'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => setViewMode('list')}
+          >
+            <List className="w-3.5 h-3.5" />
+            List
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -280,22 +318,24 @@ export function SeatsPage() {
           ))}
         </div>
       ) : seats.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-          <Armchair className="h-12 w-12 mb-3 opacity-30" />
-          <p className="text-sm">No seats found</p>
-          <p className="text-xs mt-1">Adjust filters or add new seats</p>
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+            <Armchair className="h-8 w-8 opacity-40" />
+          </div>
+          <p className="text-sm font-medium">No seats found</p>
+          <p className="text-xs mt-1 text-muted-foreground/70">Adjust filters or add new seats to get started</p>
         </div>
       ) : viewMode === 'map' ? (
         /* Seat Map View */
         <div className="space-y-6">
           {Object.entries(seatsBySection).map(([sectionId, sectionSeats]) => (
             <div key={sectionId}>
-              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+              <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary" />
                 {sectionSeats[0]?.sectionName || `Section ${sectionId}`}
-                <span className="text-xs text-muted-foreground">
-                  ({sectionSeats.filter((s) => s.status === 'occupied').length}/{sectionSeats.length} occupied)
-                </span>
+                <Badge variant="secondary" className="text-[10px] font-normal px-1.5">
+                  {sectionSeats.filter((s) => s.status === 'occupied').length}/{sectionSeats.length}
+                </Badge>
               </h4>
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
                 {sectionSeats.map((seat, index) => (
@@ -306,19 +346,23 @@ export function SeatsPage() {
                     transition={{ duration: 0.2, delay: index * 0.02 }}
                   >
                     <Card
-                      className={`cursor-pointer hover:shadow-md transition-all hover:scale-105 ${
+                      className={`cursor-pointer transition-all hover:scale-105 hover:shadow-lg animate-pulse-glow ${
                         seat.status === 'occupied'
-                          ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/50'
-                          : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/50'
+                          ? 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border-amber-200/60 dark:border-amber-800/40'
+                          : 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 border-emerald-200/60 dark:border-emerald-800/40'
                       }`}
                       onClick={() => { setSelectedSeat(seat); setViewOpen(true); }}
                     >
                       <CardContent className="p-2 text-center">
-                        <Armchair
-                          className={`w-5 h-5 mx-auto mb-1 ${
-                            seat.status === 'occupied' ? 'text-red-500 dark:text-red-400' : 'text-emerald-500 dark:text-emerald-400'
-                          }`}
-                        />
+                        {seat.status === 'available' ? (
+                          <div className="w-6 h-6 mx-auto mb-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                            <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                        ) : (
+                          <div className="w-6 h-6 mx-auto mb-1 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                            <UserIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          </div>
+                        )}
                         <p className="text-xs font-medium">{seat.seatNumber}</p>
                         {seat.memberName && (
                           <p className="text-[10px] text-muted-foreground truncate mt-0.5">{seat.memberName}</p>
@@ -330,12 +374,14 @@ export function SeatsPage() {
               </div>
             </div>
           ))}
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded bg-emerald-200 dark:bg-emerald-800" /> Available
+          <div className="flex items-center gap-6 text-xs text-muted-foreground">
+            <span className="flex items-center gap-2">
+              <span className="w-4 h-3 rounded bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/40 border border-emerald-200/60 dark:border-emerald-800/40" />
+              Available
             </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded bg-red-200 dark:bg-red-800" /> Occupied
+            <span className="flex items-center gap-2">
+              <span className="w-4 h-3 rounded bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/40 dark:to-orange-900/40 border border-amber-200/60 dark:border-amber-800/40" />
+              Occupied
             </span>
           </div>
         </div>
@@ -356,15 +402,15 @@ export function SeatsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {seats.map((seat) => (
-                    <TableRow key={seat.id}>
+                  {seats.map((seat, idx) => (
+                    <TableRow key={seat.id} className={idx % 2 === 1 ? 'bg-muted/30' : ''}>
                       <TableCell className="font-medium">{seat.seatNumber}</TableCell>
-                      <TableCell className="hidden sm:table-cell">{seat.floorName || '—'}</TableCell>
-                      <TableCell className="hidden md:table-cell">{seat.sectionName || '—'}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-muted-foreground">{seat.floorName || '—'}</TableCell>
+                      <TableCell className="hidden md:table-cell text-muted-foreground">{seat.sectionName || '—'}</TableCell>
                       <TableCell>
                         <Badge
                           variant={seat.status === 'available' ? 'default' : 'destructive'}
-                          className={seat.status === 'available' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : ''}
+                          className={seat.status === 'available' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-0'}
                         >
                           {seat.status === 'available' ? 'Available' : 'Occupied'}
                         </Badge>
@@ -506,7 +552,7 @@ export function SeatsPage() {
                 <span className="text-muted-foreground">Status</span>
                 <Badge
                   variant={selectedSeat.status === 'available' ? 'default' : 'destructive'}
-                  className={selectedSeat.status === 'available' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : ''}
+                  className={selectedSeat.status === 'available' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-0'}
                 >
                   {selectedSeat.status === 'available' ? 'Available' : 'Occupied'}
                 </Badge>

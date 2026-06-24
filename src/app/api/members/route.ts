@@ -12,9 +12,12 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || "20")));
-    const status = searchParams.get("status") || undefined;
-    const floorId = searchParams.get("floorId") || undefined;
-    const sectionId = searchParams.get("sectionId") || undefined;
+    const rawStatus = searchParams.get("status");
+    const rawFloorId = searchParams.get("floorId");
+    const rawSectionId = searchParams.get("sectionId");
+    const status = rawStatus && rawStatus !== "all" ? rawStatus : undefined;
+    const floorId = rawFloorId && rawFloorId !== "all" ? rawFloorId : undefined;
+    const sectionId = rawSectionId && rawSectionId !== "all" ? rawSectionId : undefined;
 
     const where: Prisma.MemberWhereInput = {};
 

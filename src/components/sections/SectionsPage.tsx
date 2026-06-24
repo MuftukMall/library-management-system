@@ -131,39 +131,62 @@ export function SectionsPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold">Sections</h3>
-          <p className="text-sm text-muted-foreground">Manage library sections by floor</p>
+    <div className="space-y-4 page-enter">
+      {/* Gradient header */}
+      <div className="rounded-xl bg-gradient-to-r from-teal-700 to-emerald-600 p-4 md:p-5 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Sections</h2>
+              <p className="text-sm text-white/70">Manage library sections by floor</p>
+            </div>
+          </div>
+          {sections.length > 0 && !isLoading && (
+            <Button size="sm" onClick={() => { setForm({ name: '', floorId: '' }); setAddOpen(true); }}
+              className="bg-white/20 hover:bg-white/30 text-white border-0">
+              <Plus className="h-4 w-4 mr-1" /> Add Section
+            </Button>
+          )}
         </div>
-        <div className="flex gap-2">
-          <Select value={floorFilter} onValueChange={setFloorFilter}>
-            <SelectTrigger className="w-[150px]"><SelectValue placeholder="All Floors" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Floors</SelectItem>
-              {floors.map((f) => (
-                <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-2 flex-wrap items-center">
+        <Select value={floorFilter} onValueChange={setFloorFilter}>
+          <SelectTrigger className="w-[150px]"><SelectValue placeholder="All Floors" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Floors</SelectItem>
+            {floors.map((f) => (
+              <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {sections.length > 0 && !isLoading && (
           <Button size="sm" onClick={() => { setForm({ name: '', floorId: '' }); setAddOpen(true); }}>
             <Plus className="h-4 w-4 mr-1" /> Add Section
           </Button>
-        </div>
+        )}
       </div>
 
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
+            <Skeleton key={i} className="h-36 rounded-xl" />
           ))}
         </div>
       ) : sections.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-          <Layers className="h-12 w-12 mb-3 opacity-30" />
-          <p className="text-sm">No sections found</p>
-          <p className="text-xs mt-1">Add a section to get started</p>
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+            <Layers className="h-8 w-8 opacity-40" />
+          </div>
+          <p className="text-sm font-medium">No sections found</p>
+          <p className="text-xs mt-1 text-muted-foreground/70">Add a section to get started</p>
+          <Button size="sm" className="mt-4" onClick={() => { setForm({ name: '', floorId: '' }); setAddOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Add Your First Section
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -174,11 +197,11 @@ export function SectionsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
             >
-              <Card className="hover:shadow-md transition-shadow group">
+              <Card className="hover:shadow-lg transition-all hover:scale-[1.02] group border-l-4 border-l-teal-500">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
+                      <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400">
                         <Layers className="w-5 h-5" />
                       </div>
                       <div>

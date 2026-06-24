@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,7 +11,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Save, Building } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Loader2, Save, Building, Download, Upload, Database, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 interface SettingsData {
   libraryName?: string;
@@ -32,6 +42,12 @@ export function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [info, setInfo] = useState<SettingsData>(emptyInfo);
   const [password, setPassword] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+
+  // Database tab state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreOpen, setRestoreOpen] = useState(false);
+  const [backupLoading, setBackupLoading] = useState(false);
 
   const { data: settings, isLoading } = useQuery<SettingsData>({
     queryKey: ['settings'],
@@ -90,6 +106,53 @@ export function SettingsPage() {
     onSettled: () => setLoading(false),
   });
 
+  const handleBackup = async () => {
+    setBackupLoading(true);
+    try {
+      const res = await fetch('/api/settings/backup');
+      if (!res.ok) throw new Error('Backup failed');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `library-backup-${new Date().toISOString().split('T')[0]}.db`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success('Database backup downloaded successfully');
+    } catch {
+      toast.error('Failed to create backup');
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!restoreFile) return;
+    setRestoreOpen(false);
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', restoreFile);
+      const res = await fetch('/api/settings/restore', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Restore failed');
+      toast.success('Database restored successfully! Please reload the page.');
+      setRestoreFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      // Invalidate all queries to refresh data
+      queryClient.invalidateQueries();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to restore database');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -100,16 +163,25 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl">
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold">Settings</h3>
-        <p className="text-sm text-muted-foreground">Manage your library settings and preferences</p>
+    <div className="max-w-2xl page-enter">
+      {/* Gradient header */}
+      <div className="rounded-xl bg-gradient-to-r from-slate-600 to-teal-600 p-4 md:p-5 text-white mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+            <Save className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold">Settings</h2>
+            <p className="text-sm text-white/70">Manage your library settings and preferences</p>
+          </div>
+        </div>
       </div>
 
       <Tabs defaultValue="library" className="space-y-6">
         <TabsList>
           <TabsTrigger value="library">Library Information</TabsTrigger>
           <TabsTrigger value="admin">Admin Settings</TabsTrigger>
+          <TabsTrigger value="database">Database</TabsTrigger>
         </TabsList>
 
         <TabsContent value="library">
@@ -195,6 +267,93 @@ export function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="database">
+          <div className="space-y-4">
+            {/* Backup */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Database className="h-4 w-4" />
+                  Database Backup
+                </CardTitle>
+                <CardDescription>Download a backup of your entire database</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={handleBackup} disabled={backupLoading} variant="outline" className="border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30">
+                  {backupLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+                  Backup Database
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Restore */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Upload className="h-4 w-4" />
+                  Restore Database
+                </CardTitle>
+                <CardDescription>Restore your database from a backup file</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <p className="text-sm text-amber-800 dark:text-amber-300">
+                    ⚠️ Restoring a backup will replace all current data. This action cannot be undone.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".db"
+                    onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
+                    className="max-w-xs"
+                  />
+                  <Button
+                    onClick={() => setRestoreOpen(true)}
+                    disabled={!restoreFile || loading}
+                    variant="outline"
+                    className="border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  >
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                    Restore
+                  </Button>
+                </div>
+
+                {restoreFile && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <span>Selected: {restoreFile.name} ({(restoreFile.size / 1024).toFixed(1)} KB)</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Restore Confirmation Dialog */}
+          <AlertDialog open={restoreOpen} onOpenChange={setRestoreOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirm Database Restore</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently replace your current database with the backup file &quot;{restoreFile?.name}&quot;. All current data will be lost. Are you sure you want to continue?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleRestore}
+                  className="bg-destructive text-white hover:bg-destructive/90"
+                >
+                  Yes, Restore Database
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
       </Tabs>
     </div>

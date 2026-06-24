@@ -53,11 +53,16 @@ import {
   Eye,
   Trash2,
   Download,
+  Printer,
   CreditCard,
   ChevronLeft,
   ChevronRight,
   Loader2,
   Search,
+  DollarSign,
+  CalendarDays,
+  Clock,
+  IndianRupee,
 } from 'lucide-react';
 
 interface Payment {
@@ -78,6 +83,10 @@ interface MemberOption {
 }
 
 const PAGE_SIZE = 20;
+
+function formatCurrency(v: number) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
+}
 
 export function PaymentsPage() {
   const queryClient = useQueryClient();
@@ -111,6 +120,23 @@ export function PaymentsPage() {
     },
   });
 
+  // Fetch summary stats
+  const { data: summary } = useQuery({
+    queryKey: ['payments-summary'],
+    queryFn: () => fetch('/api/payments?limit=1000').then((r) => r.json()).then((d) => {
+      const allPayments = d.payments || d || [];
+      const total = allPayments.filter((p: Payment) => p.status === 'paid').reduce((sum: number, p: Payment) => sum + p.amount, 0);
+      const pending = allPayments.filter((p: Payment) => p.status === 'pending').reduce((sum: number, p: Payment) => sum + p.amount, 0);
+      const thisMonth = allPayments.filter((p: Payment) => {
+        if (p.status !== 'paid' || !p.paymentDate) return false;
+        const d = new Date(p.paymentDate);
+        const now = new Date();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      }).reduce((sum: number, p: Payment) => sum + p.amount, 0);
+      return { total, pending, thisMonth };
+    }),
+  });
+
   const { data: searchResults = [] } = useQuery<MemberOption[]>({
     queryKey: ['payment-member-search', memberSearch],
     queryFn: () => fetch(`/api/members?search=${memberSearch}&limit=10`).then((r) => r.json()).then((d) => d.members || d || []),
@@ -138,6 +164,7 @@ export function PaymentsPage() {
       setForm({ memberId: '', amount: 0, paymentDate: new Date().toISOString().split('T')[0], validTill: '', status: 'paid' });
       setMemberSearch('');
       queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['payments-summary'] });
     },
     onError: (e) => toast.error(e.message),
     onSettled: () => setLoading(false),
@@ -148,24 +175,69 @@ export function PaymentsPage() {
       const res = await fetch(`/api/payments/${selectedPayment!.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete payment');
     },
-    onSuccess: () => { toast.success('Payment deleted'); setDeleteOpen(false); queryClient.invalidateQueries({ queryKey: ['payments'] }); },
+    onSuccess: () => { toast.success('Payment deleted'); setDeleteOpen(false); queryClient.invalidateQueries({ queryKey: ['payments'] }); queryClient.invalidateQueries({ queryKey: ['payments-summary'] }); },
     onError: () => toast.error('Failed to delete payment'),
   });
 
-  const formatCurrency = (v: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
-
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold">Payments</h3>
-          <p className="text-sm text-muted-foreground">Track all payment records</p>
+    <div className="space-y-4 page-enter">
+      {/* Gradient header */}
+      <div className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 p-4 md:p-5 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+              <CreditCard className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Payments</h2>
+              <p className="text-sm text-white/70">Track all payment records</p>
+            </div>
+          </div>
+          <Button size="sm" onClick={() => { setForm({ memberId: '', amount: 0, paymentDate: new Date().toISOString().split('T')[0], validTill: '', status: 'paid' }); setMemberSearch(''); setAddOpen(true); }}
+            className="bg-white/20 hover:bg-white/30 text-white border-0">
+            <Plus className="h-4 w-4 mr-1" /> Add Payment
+          </Button>
         </div>
-        <Button size="sm" onClick={() => { setForm({ memberId: '', amount: 0, paymentDate: new Date().toISOString().split('T')[0], validTill: '', status: 'paid' }); setMemberSearch(''); setAddOpen(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> Add Payment
-        </Button>
       </div>
+
+      {/* Revenue summary bar */}
+      {summary && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Card className="border-l-4 border-l-emerald-500">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <IndianRupee className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground">Total Collected</p>
+                <p className="text-sm font-semibold">{formatCurrency(summary.total)}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-teal-500">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-teal-50 dark:bg-teal-950/40 flex items-center justify-center text-teal-600 dark:text-teal-400">
+                <CalendarDays className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground">This Month</p>
+                <p className="text-sm font-semibold">{formatCurrency(summary.thisMonth)}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-amber-500">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground">Pending</p>
+                <p className="text-sm font-semibold">{formatCurrency(summary.pending)}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
@@ -195,10 +267,12 @@ export function PaymentsPage() {
               ))}
             </div>
           ) : !Array.isArray(payments) || payments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-              <CreditCard className="h-12 w-12 mb-3 opacity-30" />
-              <p className="text-sm">No payments found</p>
-              <p className="text-xs mt-1">Adjust filters or add a new payment</p>
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <CreditCard className="h-8 w-8 opacity-40" />
+              </div>
+              <p className="text-sm font-medium">No payments found</p>
+              <p className="text-xs mt-1 text-muted-foreground/70">Adjust filters or add a new payment</p>
             </div>
           ) : (
             <>
@@ -216,21 +290,23 @@ export function PaymentsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {payments.map((payment: Payment & { member?: { id: string; name: string } }) => (
-                      <TableRow key={payment.id}>
+                    {payments.map((payment: Payment & { member?: { id: string; name: string } }, idx: number) => (
+                      <TableRow key={payment.id} className={idx % 2 === 1 ? 'bg-muted/30' : ''}>
                         <TableCell className="font-mono text-xs">{payment.receiptNo || payment.id.slice(0, 8)}</TableCell>
                         <TableCell className="font-medium">{payment.member?.name || payment.memberName || '—'}</TableCell>
-                        <TableCell className="hidden sm:table-cell">{formatCurrency(payment.amount)}</TableCell>
-                        <TableCell className="hidden md:table-cell">
+                        <TableCell className="hidden sm:table-cell font-medium">{formatCurrency(payment.amount)}</TableCell>
+                        <TableCell className="hidden md:table-cell text-muted-foreground">
                           {payment.paymentDate ? format(new Date(payment.paymentDate), 'dd MMM yyyy') : '—'}
                         </TableCell>
-                        <TableCell className="hidden lg:table-cell">
+                        <TableCell className="hidden lg:table-cell text-muted-foreground">
                           {payment.validTill ? format(new Date(payment.validTill), 'dd MMM yyyy') : '—'}
                         </TableCell>
                         <TableCell>
                           <Badge
                             variant={payment.status === 'paid' ? 'default' : 'secondary'}
-                            className={payment.status === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-0'}
+                            className={payment.status === 'paid'
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0'
+                              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-0'}
                           >
                             {payment.status === 'paid' ? 'Paid' : 'Pending'}
                           </Badge>
@@ -241,15 +317,26 @@ export function PaymentsPage() {
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
                             {payment.status === 'paid' && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => window.open(`/api/payments/${payment.id}/receipt`, '_blank')}
-                                title="Download Receipt"
-                              >
-                                <Download className="h-3.5 w-3.5" />
-                              </Button>
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => window.open(`/api/payments/${payment.id}/receipt`, '_blank')}
+                                  title="Download Receipt"
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => window.open(`/api/payments/${payment.id}/receipt`, '_blank')}
+                                  title="Print Receipt"
+                                >
+                                  <Printer className="h-3.5 w-3.5" />
+                                </Button>
+                              </>
                             )}
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelectedPayment(payment); setDeleteOpen(true); }}>
                               <Trash2 className="h-3.5 w-3.5" />
@@ -405,7 +492,9 @@ export function PaymentsPage() {
                 <span className="text-muted-foreground">Status</span>
                 <Badge
                   variant={selectedPayment.status === 'paid' ? 'default' : 'secondary'}
-                  className={selectedPayment.status === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-0'}
+                  className={selectedPayment.status === 'paid'
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0'
+                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-0'}
                 >
                   {selectedPayment.status === 'paid' ? 'Paid' : 'Pending'}
                 </Badge>
@@ -415,9 +504,14 @@ export function PaymentsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewOpen(false)}>Close</Button>
             {selectedPayment?.status === 'paid' && (
-              <Button onClick={() => window.open(`/api/payments/${selectedPayment.id}/receipt`, '_blank')}>
-                <Download className="h-4 w-4 mr-1" /> Receipt
-              </Button>
+              <>
+                <Button variant="outline" onClick={() => window.open(`/api/payments/${selectedPayment.id}/receipt`, '_blank')}>
+                  <Printer className="h-4 w-4 mr-1" /> Print
+                </Button>
+                <Button onClick={() => window.open(`/api/payments/${selectedPayment.id}/receipt`, '_blank')}>
+                  <Download className="h-4 w-4 mr-1" /> Receipt
+                </Button>
+              </>
             )}
           </DialogFooter>
         </DialogContent>

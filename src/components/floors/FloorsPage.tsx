@@ -108,28 +108,50 @@ export function FloorsPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">Floors</h3>
-          <p className="text-sm text-muted-foreground">Manage your library floors</p>
+    <div className="space-y-4 page-enter">
+      {/* Gradient header */}
+      <div className="rounded-xl bg-gradient-to-r from-emerald-700 to-teal-600 p-4 md:p-5 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Floors</h2>
+              <p className="text-sm text-white/70">Manage your library floors</p>
+            </div>
+          </div>
+          {floors.length > 0 && (
+            <Button size="sm" onClick={() => { setFloorName(''); setAddOpen(true); }}
+              className="bg-white/20 hover:bg-white/30 text-white border-0">
+              <Plus className="h-4 w-4 mr-1" /> Add Floor
+            </Button>
+          )}
         </div>
+      </div>
+
+      {floors.length > 0 && !isLoading && (
         <Button size="sm" onClick={() => { setFloorName(''); setAddOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" /> Add Floor
         </Button>
-      </div>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
+            <Skeleton key={i} className="h-36 rounded-xl" />
           ))}
         </div>
       ) : floors.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-          <Building2 className="h-12 w-12 mb-3 opacity-30" />
-          <p className="text-sm">No floors yet</p>
-          <p className="text-xs mt-1">Add your first floor to get started</p>
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+            <Building2 className="h-8 w-8 opacity-40" />
+          </div>
+          <p className="text-sm font-medium">No floors yet</p>
+          <p className="text-xs mt-1 text-muted-foreground/70">Add your first floor to get started</p>
+          <Button size="sm" className="mt-4" onClick={() => { setFloorName(''); setAddOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Add Your First Floor
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -140,11 +162,11 @@ export function FloorsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
             >
-              <Card className="hover:shadow-md transition-shadow group">
+              <Card className="hover:shadow-lg transition-all hover:scale-[1.02] group border-l-4 border-l-emerald-500">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400">
+                      <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
                         <Building2 className="w-5 h-5" />
                       </div>
                       <div>

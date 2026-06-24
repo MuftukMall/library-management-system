@@ -121,24 +121,104 @@
   }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - thin with emerald accent */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: oklch(0.7 0.03 162);
-  border-radius: 3px;
+  background: oklch(0.72 0.06 162);
+  border-radius: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.6 0.04 162);
+  background: oklch(0.6 0.08 162);
 }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: oklch(0.4 0.03 162);
+  background: oklch(0.38 0.05 162);
 }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.5 0.04 162);
+  background: oklch(0.48 0.07 162);
+}
+
+/* Global scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.72 0.06 162) transparent;
+}
+.dark * {
+  scrollbar-color: oklch(0.38 0.05 162) transparent;
+}
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.78 0.04 162);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.65 0.06 162);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: oklch(0.32 0.04 162);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.42 0.06 162);
+}
+
+/* Animated gradient background for login */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animated-gradient-bg {
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+}
+
+/* Subtle floating animation for decorative elements */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-12px) rotate(2deg); }
+  66% { transform: translateY(6px) rotate(-1deg); }
+}
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+}
+.animate-float-slow {
+  animation: float 12s ease-in-out infinite;
+}
+.animate-float-slower {
+  animation: float 16s ease-in-out infinite;
+}
+
+/* Pulse glow for recently changed seats */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.7 0.15 162 / 0); }
+  50% { box-shadow: 0 0 0 6px oklch(0.7 0.15 162 / 0.15); }
+}
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out 3;
+}
+
+/* Page transition */
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: pageFadeIn 0.3s ease-out;
+}
+
+/* Glass morphism */
+.glass-card {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
 }

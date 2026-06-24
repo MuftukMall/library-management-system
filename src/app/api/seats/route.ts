@@ -8,9 +8,12 @@ export async function GET(request: NextRequest) {
     await requireAuth();
 
     const { searchParams } = new URL(request.url);
-    const floorId = searchParams.get("floorId") || undefined;
-    const sectionId = searchParams.get("sectionId") || undefined;
-    const status = searchParams.get("status") || undefined;
+    const rawFloorId = searchParams.get("floorId");
+    const rawSectionId = searchParams.get("sectionId");
+    const rawStatus = searchParams.get("status");
+    const floorId = rawFloorId && rawFloorId !== "all" ? rawFloorId : undefined;
+    const sectionId = rawSectionId && rawSectionId !== "all" ? rawSectionId : undefined;
+    const status = rawStatus && rawStatus !== "all" ? rawStatus : undefined;
 
     const where: Record<string, unknown> = {};
     if (floorId) where.floorId = floorId;

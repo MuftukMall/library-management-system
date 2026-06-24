@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -62,6 +62,7 @@ import {
   ChevronRight,
   Loader2,
   Users,
+  UserPlus,
 } from 'lucide-react';
 
 interface Member {
@@ -86,6 +87,32 @@ interface Floor { id: string; name: string; }
 interface Section { id: string; name: string; floorId: string; }
 
 const PAGE_SIZE = 20;
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+function isExpiringSoon(expiryDate: string) {
+  if (!expiryDate) return false;
+  const days = differenceInDays(new Date(expiryDate), new Date());
+  return days >= 0 && days <= 7;
+}
+
+function getAvatarColor(name: string) {
+  const colors = [
+    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+    'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
+    'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300',
+    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+    'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
 
 export function MembersPage() {
   const queryClient = useQueryClient();
@@ -163,8 +190,8 @@ export function MembersPage() {
     setForm((prev) => ({
       ...prev,
       ...(key === 'floorId' ? { floorId: value, sectionId: '', seatId: '' } :
-          key === 'sectionId' ? { sectionId: value, seatId: '' } :
-          { [key]: value }),
+      key === 'sectionId' ? { sectionId: value, seatId: '' } :
+      { [key]: value }),
     }));
   };
 
@@ -358,7 +385,22 @@ export function MembersPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 page-enter">
+      {/* Gradient header bar */}
+      <div className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-4 md:p-5 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold">Members</h2>
+            <p className="text-sm text-white/70 mt-0.5">Manage your library members</p>
+          </div>
+          {total > 0 && (
+            <Badge variant="secondary" className="bg-white/20 text-white border-0 text-xs">
+              {total} total
+            </Badge>
+          )}
+        </div>
+      </div>
+
       {/* Header with search and filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -411,10 +453,15 @@ export function MembersPage() {
               ))}
             </div>
           ) : members.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-              <Users className="h-12 w-12 mb-3 opacity-30" />
-              <p className="text-sm">No members found</p>
-              <p className="text-xs mt-1">Try adjusting your search or filters</p>
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Users className="h-8 w-8 opacity-40" />
+              </div>
+              <p className="text-sm font-medium">No members found</p>
+              <p className="text-xs mt-1 text-muted-foreground/70">Try adjusting your search or filters, or add your first member</p>
+              <Button size="sm" className="mt-4" onClick={() => { resetForm(); setAddOpen(true); }}>
+                <UserPlus className="h-4 w-4 mr-1.5" /> Add Your First Member
+              </Button>
             </div>
           ) : (
             <>
@@ -431,40 +478,66 @@ export function MembersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {members.map((member: Member) => (
-                      <TableRow key={member.id}>
-                        <TableCell className="font-medium">{member.name}</TableCell>
-                        <TableCell className="hidden sm:table-cell">{member.phone}</TableCell>
-                        <TableCell className="hidden md:table-cell">{member.seatNumber || '—'}</TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          {member.expiryDate ? format(new Date(member.expiryDate), 'dd MMM yyyy') : '—'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={member.status === 'active' ? 'default' : 'destructive'}
-                            className={member.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : ''}
-                          >
-                            {member.status === 'active' ? 'Active' : 'Expired'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openView(member)} title="View">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(member)} title="Edit">
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openRenew(member)} title="Renew">
-                              <RefreshCw className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelectedMember(member); setDeleteOpen(true); }} title="Delete">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {members.map((member: Member, idx: number) => {
+                      const expiring = isExpiringSoon(member.expiryDate);
+                      return (
+                        <TableRow key={member.id} className={idx % 2 === 1 ? 'bg-muted/30' : ''}>
+                          <TableCell>
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 ${getAvatarColor(member.name)}`}>
+                                {getInitials(member.name)}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-medium">{member.name}</span>
+                                {expiring && member.status === 'active' && (
+                                  <span className="relative flex h-2 w-2" title="Expiring soon">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-muted-foreground">{member.phone}</TableCell>
+                          <TableCell className="hidden md:table-cell text-muted-foreground">{member.seatNumber || '—'}</TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <span className={expiring && member.status === 'active' ? 'text-orange-600 dark:text-orange-400 font-medium' : 'text-muted-foreground'}>
+                              {member.expiryDate ? format(new Date(member.expiryDate), 'dd MMM yyyy') : '—'}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {member.status === 'active' && expiring ? (
+                              <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border-0">
+                                Expiring
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant={member.status === 'active' ? 'default' : 'destructive'}
+                                className={member.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 border-0'}
+                              >
+                                {member.status === 'active' ? 'Active' : 'Expired'}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openView(member)} title="View">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(member)} title="Edit">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openRenew(member)} title="Renew">
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelectedMember(member); setDeleteOpen(true); }} title="Delete">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -552,7 +625,7 @@ export function MembersPage() {
                   <div><span className="text-muted-foreground">Status:</span>
                     <p>
                       <Badge variant={viewMember.status === 'active' ? 'default' : 'destructive'}
-                        className={viewMember.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : ''}>
+                        className={viewMember.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 border-0'}>
                         {viewMember.status === 'active' ? 'Active' : 'Expired'}
                       </Badge>
                     </p>
