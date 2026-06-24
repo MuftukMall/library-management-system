@@ -182,7 +182,7 @@ export function PaymentsPage() {
   return (
     <div className="space-y-4 page-enter">
       {/* Gradient header */}
-      <div className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 p-4 md:p-5 text-white">
+      <div className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 p-3 md:p-4 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
@@ -203,7 +203,7 @@ export function PaymentsPage() {
       {/* Revenue summary bar */}
       {summary && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card className="border-l-4 border-l-emerald-500">
+          <Card className="border-l-4 border-l-emerald-500 hover-card-lift">
             <CardContent className="p-3 flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                 <IndianRupee className="w-4 h-4" />

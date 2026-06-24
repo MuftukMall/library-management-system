@@ -110,7 +110,7 @@ export function FloorsPage() {
   return (
     <div className="space-y-4 page-enter">
       {/* Gradient header */}
-      <div className="rounded-xl bg-gradient-to-r from-emerald-700 to-teal-600 p-4 md:p-5 text-white">
+      <div className="rounded-xl bg-gradient-to-r from-emerald-700 to-teal-600 p-3 md:p-4 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
@@ -162,7 +162,7 @@ export function FloorsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
             >
-              <Card className="hover:shadow-lg transition-all hover:scale-[1.02] group border-l-4 border-l-emerald-500">
+              <Card className="hover-card-lift hover:scale-[1.02] group border-l-4 border-l-emerald-500">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">

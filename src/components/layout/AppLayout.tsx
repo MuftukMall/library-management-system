@@ -34,6 +34,26 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { NotificationBell } from './NotificationBell';
+import { CommandPalette } from './CommandPalette';
+import { NotificationBell } from './NotificationBell';
+import { CommandPalette } from './CommandPalette';
+import { NotificationBell } from './NotificationBell';
+import { CommandPalette } from './CommandPalette';
+import { NotificationBell } from './NotificationBell';
+import { CommandPalette } from './CommandPalette';
+import { NotificationBell } from './NotificationBell';
+import { CommandPalette } from './CommandPalette';
+import { NotificationBell } from './NotificationBell';
+import { CommandPalette } from './CommandPalette';
+import { NotificationBell } from './NotificationBell';
+import { CommandPalette } from './CommandPalette';
+import { NotificationBell } from './NotificationBell';
+import { CommandPalette } from './CommandPalette';
+import { NotificationBell } from './NotificationBell';
+import { CommandPalette } from './CommandPalette';
+import { NotificationBell } from './NotificationBell';
+import { CommandPalette } from './CommandPalette';
 import {
   LayoutDashboard,
   Users,
@@ -48,6 +68,7 @@ import {
   LogOut,
   BookOpen,
   CircleHelp,
+  Search,
 } from 'lucide-react';
 
 const navItems: { page: Page; label: string; icon: React.ElementType }[] = [
@@ -229,6 +250,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <span className="sr-only">Toggle theme</span>
             </Button>
 
+            <NotificationBell />
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground"
+              onClick={() => {
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+              }}
+            >
+              <Search className="h-4 w-4" />
+              <span className="sr-only">Search</span>
+            </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-9 w-9">
@@ -256,6 +291,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </p>
         </footer>
       </SidebarInset>
+      <CommandPalette />
     </SidebarProvider>
   );
 }

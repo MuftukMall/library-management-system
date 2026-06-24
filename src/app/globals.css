@@ -222,3 +222,51 @@
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
+
+/* Shimmer animation for skeleton loading */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, oklch(0.96 0.01 166) 25%, oklch(0.93 0.015 166) 50%, oklch(0.96 0.01 166) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Stat value with tabular nums */
+.stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Table header styling */
+.table-header-row th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: oklch(0.5 0.03 160);
+}
+.dark .table-header-row th {
+  color: oklch(0.65 0.03 162);
+}
+
+/* Hover card lift effect */
+.hover-card-lift {
+  transition: all 0.2s ease;
+}
+.hover-card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px oklch(0.5 0.1 162 / 0.1);
+}
+
+/* Gradient header bar - compact */
+.gradient-header-bar {
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+@media (min-width: 768px) {
+  .gradient-header-bar {
+    padding: 1rem 1.25rem;
+  }
+}

@@ -17,7 +17,6 @@ import {
   CartesianGrid,
   Area,
   AreaChart,
-  ResponsiveContainer,
 } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -37,6 +36,7 @@ import {
   AlertTriangle,
   Wallet,
   CalendarDays,
+  Zap,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/store/appStore';
@@ -153,14 +153,12 @@ export function DashboardPage() {
     monthlyCollection: [], memberGrowth: [],
   };
 
-  const hasChartData = stats.monthlyCollection.some((m) => m.amount > 0) || stats.memberGrowth.some((m) => m.count > 0);
-
   return (
     <div className="space-y-6 page-enter">
       {/* Expiring Soon Alert */}
       {expiringMembers.length > 0 && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors" onClick={() => setCurrentPage('members')}>
+          <div className="flex items-center gap-3 p-3 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors" onClick={() => setCurrentPage('members')}>
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 shrink-0">
               <AlertTriangle className="w-5 h-5" />
             </div>
@@ -191,14 +189,14 @@ export function DashboardPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
             >
-              <Card className={`hover:shadow-md transition-all border-l-4 ${card.borderColor}`}>
+              <Card className={`hover-card-lift border-l-4 ${card.borderColor}`}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-muted-foreground truncate">{card.label}</p>
-                      <p className="text-lg font-semibold tabular-nums mt-0.5">{displayValue}</p>
+                      <p className="text-lg font-semibold stat-value mt-0.5">{displayValue}</p>
                     </div>
-                    <div className={`flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full ${
+                    <div className={`flex items-center gap-0.5 text-[11px] font-medium px-2 py-1 rounded-full ${
                       card.up === true ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40' :
                       card.up === false ? 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40' :
                       'text-muted-foreground bg-muted'
@@ -215,50 +213,59 @@ export function DashboardPage() {
         })}
       </div>
 
-      {/* Quick Actions */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-sm font-medium text-muted-foreground">Quick Actions</span>
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setCurrentPage('members')}>
-          <UserPlus className="w-3.5 h-3.5" />
-          Add Member
-        </Button>
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setCurrentPage('payments')}>
-          <CreditCard className="w-3.5 h-3.5" />
-          Record Payment
-        </Button>
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setCurrentPage('seats')}>
-          <Map className="w-3.5 h-3.5" />
-          View Seat Map
-        </Button>
-      </div>
+      {/* Quick Actions Card */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 text-primary">
+              <Zap className="w-4 h-4" />
+            </div>
+            <span className="text-sm font-semibold">Quick Actions</span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setCurrentPage('members')}>
+              <UserPlus className="w-3.5 h-3.5" />
+              Add Member
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setCurrentPage('payments')}>
+              <CreditCard className="w-3.5 h-3.5" />
+              Record Payment
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setCurrentPage('seats')}>
+              <Map className="w-3.5 h-3.5" />
+              View Seat Map
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Revenue Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-          <Card className="border-l-4 border-l-emerald-500">
+          <Card className="border-l-4 border-l-emerald-500 hover-card-lift">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
                 <CalendarDays className="w-5 h-5" />
               </div>
               <div className="flex-1">
                 <p className="text-xs text-muted-foreground">Today</p>
-                <p className="text-lg font-semibold tabular-nums">{formatCurrency(revenue.today)}</p>
+                <p className="text-lg font-semibold stat-value">{formatCurrency(revenue.today)}</p>
               </div>
             </CardContent>
           </Card>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <Card className="border-l-4 border-l-teal-500">
+          <Card className="border-l-4 border-l-teal-500 hover-card-lift">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400">
                 <Wallet className="w-5 h-5" />
               </div>
               <div className="flex-1">
                 <p className="text-xs text-muted-foreground">This Week</p>
-                <p className="text-lg font-semibold tabular-nums">{formatCurrency(revenue.thisWeek)}</p>
+                <p className="text-lg font-semibold stat-value">{formatCurrency(revenue.thisWeek)}</p>
               </div>
               {revenue.weekChange !== 0 && (
-                <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${revenue.weekChange > 0 ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40' : 'text-orange-600 bg-orange-50 dark:bg-orange-950/40'}`}>
+                <span className={`text-xs font-medium px-2 py-1 rounded-full ${revenue.weekChange > 0 ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40' : 'text-orange-600 bg-orange-50 dark:bg-orange-950/40'}`}>
                   {revenue.weekChange > 0 ? '+' : ''}{revenue.weekChange}%
                 </span>
               )}
@@ -266,17 +273,17 @@ export function DashboardPage() {
           </Card>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-          <Card className="border-l-4 border-l-emerald-600">
+          <Card className="border-l-4 border-l-emerald-600 hover-card-lift">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
                 <DollarSign className="w-5 h-5" />
               </div>
               <div className="flex-1">
                 <p className="text-xs text-muted-foreground">This Month</p>
-                <p className="text-lg font-semibold tabular-nums">{formatCurrency(revenue.thisMonth)}</p>
+                <p className="text-lg font-semibold stat-value">{formatCurrency(revenue.thisMonth)}</p>
               </div>
               {revenue.monthChange !== 0 && (
-                <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${revenue.monthChange > 0 ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40' : 'text-orange-600 bg-orange-50 dark:bg-orange-950/40'}`}>
+                <span className={`text-xs font-medium px-2 py-1 rounded-full ${revenue.monthChange > 0 ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40' : 'text-orange-600 bg-orange-50 dark:bg-orange-950/40'}`}>
                   {revenue.monthChange > 0 ? '+' : ''}{revenue.monthChange}%
                 </span>
               )}
@@ -287,12 +294,8 @@ export function DashboardPage() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-        >
-          <Card>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }}>
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-2 px-5 pt-5">
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
@@ -322,12 +325,8 @@ export function DashboardPage() {
           </Card>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.4 }}
-        >
-          <Card>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }}>
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-2 px-5 pt-5">
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400">
@@ -365,11 +364,7 @@ export function DashboardPage() {
       </div>
 
       {/* Recent Activity */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.5 }}
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.5 }}>
         <Card>
           <CardHeader className="pb-3 px-5 pt-5">
             <div className="flex items-center gap-2">
@@ -386,11 +381,13 @@ export function DashboardPage() {
               <div className="space-y-3">
                 {activities.slice(0, 8).map((activity) => (
                   <div key={activity.id} className="flex items-start gap-3">
-                    <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
-                      activity.type === 'member' ? 'bg-emerald-500' :
-                      activity.type === 'payment' ? 'bg-teal-500' :
-                      'bg-amber-500'
-                    }`} />
+                    <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold ${
+                      activity.type === 'member' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' :
+                      activity.type === 'payment' ? 'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300' :
+                      'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+                    }`}>
+                      {activity.type === 'member' ? 'U' : '₹'}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm">{activity.title}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">

@@ -93,7 +93,7 @@ export function WhatsAppPage() {
   return (
     <div className="space-y-6 max-w-4xl page-enter">
       {/* Gradient header */}
-      <div className="rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 p-4 md:p-5 text-white">
+      <div className="rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 p-3 md:p-4 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">

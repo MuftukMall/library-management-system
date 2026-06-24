@@ -165,7 +165,7 @@ export function SettingsPage() {
   return (
     <div className="max-w-2xl page-enter">
       {/* Gradient header */}
-      <div className="rounded-xl bg-gradient-to-r from-slate-600 to-teal-600 p-4 md:p-5 text-white mb-6">
+      <div className="rounded-xl bg-gradient-to-r from-slate-600 to-teal-600 p-3 md:p-4 text-white mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
             <Save className="w-5 h-5" />
@@ -178,7 +178,7 @@ export function SettingsPage() {
       </div>
 
       <Tabs defaultValue="library" className="space-y-6">
-        <TabsList>
+        <TabsList className="shadow-sm rounded-xl">
           <TabsTrigger value="library">Library Information</TabsTrigger>
           <TabsTrigger value="admin">Admin Settings</TabsTrigger>
           <TabsTrigger value="database">Database</TabsTrigger>
