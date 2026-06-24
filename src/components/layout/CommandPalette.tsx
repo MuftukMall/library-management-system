@@ -44,9 +44,22 @@ export function CommandPalette() {
   const handleSelect = useCallback((page: Page) => {
     setCurrentPage(page);
     setOpen(false);
-    setSearch('');
-    setSelectedIndex(0);
   }, [setCurrentPage]);
+
+  // Reset search and selectedIndex when dialog closes
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setSearch('');
+      setSelectedIndex(0);
+    }
+  }, []);
+
+  // Reset selectedIndex when search input changes
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value);
+    setSelectedIndex(0);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -60,14 +73,8 @@ export function CommandPalette() {
   }, []);
 
   useEffect(() => {
-    setSelectedIndex(0);
-  }, [search]);
-
-  useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 100);
-    } else {
-      setSearch('');
     }
   }, [open]);
 
@@ -84,14 +91,14 @@ export function CommandPalette() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md p-0 gap-0 border-0 shadow-2xl overflow-hidden">
         <div className="flex items-center gap-3 px-4 py-3 border-b">
           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
           <Input
             ref={inputRef}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search pages..."
             className="border-0 shadow-none focus-visible:ring-0 h-8 p-0 text-sm"
