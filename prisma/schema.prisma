@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Member {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  whatsapp  String?
+  address   String?
+  joinDate  DateTime
+  expiryDate DateTime
+  seatId    String?   @unique
+  floorId   String?
+  sectionId String?
+  fee       Float
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  seat    Seat?    @relation(fields: [seatId], references: [id])
+  floor   Floor?   @relation(fields: [floorId], references: [id])
+  section Section? @relation(fields: [sectionId], references: [id])
+  payments Payment[]
+
+  @@index([name])
+  @@index([phone])
+  @@index([status])
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  memberId    String
+  amount      Float
+  paymentDate DateTime
+  validTill   DateTime
+  status      String   @default("paid")
+  receiptNo   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@index([paymentDate])
+  @@index([status])
+}
+
+model Floor {
+  id        String    @id @default(cuid())
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  sections Section[]
+  seats    Seat[]
+  members  Member[]
+
+  @@index([name])
+}
+
+model Section {
+  id        String   @id @default(cuid())
+  floorId   String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  floor   Floor  @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  seats   Seat[]
+  members Member[]
+
+  @@index([floorId])
+}
+
+model Seat {
+  id        String   @id @default(cuid())
+  seatNumber String
+  floorId   String
+  sectionId String?
+  status    String   @default("available")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  floor   Floor?   @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  section Section? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  member  Member?
+
+  @@unique([seatNumber, floorId])
+  @@index([floorId])
+  @@index([sectionId])
+  @@index([status])
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}
