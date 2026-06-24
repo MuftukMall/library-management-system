@@ -63,7 +63,9 @@ import {
   Loader2,
   Users,
   UserPlus,
+  IdCard,
 } from 'lucide-react';
+import { MemberCard } from './MemberCard';
 
 interface Member {
   id: string;
@@ -128,6 +130,8 @@ export function MembersPage() {
   const [viewOpen, setViewOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [renewOpen, setRenewOpen] = useState(false);
+  const [cardMemberId, setCardMemberId] = useState('');
+  const [cardOpen, setCardOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
   // Form state
@@ -530,6 +534,9 @@ export function MembersPage() {
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openRenew(member)} title="Renew">
                                 <RefreshCw className="h-4 w-4" />
                               </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => { setCardMemberId(member.id); setCardOpen(true); }} title="Print Card">
+                                <IdCard className="h-4 w-4" />
+                              </Button>
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelectedMember(member); setDeleteOpen(true); }} title="Delete">
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -737,6 +744,7 @@ export function MembersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <MemberCard memberId={cardMemberId} open={cardOpen} onOpenChange={setCardOpen} />
     </div>
   );
 }

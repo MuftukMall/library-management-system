@@ -28,6 +28,7 @@ model Member {
   sectionId String?
   fee       Float
   status    String   @default("active")
+  notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -112,4 +113,16 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@index([key])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  details   String?
+  metadata  String?  // JSON string for extra data
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([createdAt])
 }

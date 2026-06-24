@@ -7,19 +7,33 @@ export async function GET() {
   try {
     await requireAuth();
 
-    // Get latest 5 members
+    // Try to get from ActivityLog table first
+    const logs = await db.activityLog.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    if (logs.length > 0) {
+      const activities = logs.map((log) => ({
+        id: log.id,
+        type: log.type.startsWith("member") ? "member" :
+              log.type.startsWith("payment") ? "payment" :
+              log.type.startsWith("seat") ? "seat" :
+              "system",
+        title: log.title,
+        date: log.createdAt.toISOString(),
+        details: log.details,
+      }));
+      return NextResponse.json({ activities });
+    }
+
+    // Fallback: derive from actual data
     const recentMembers = await db.member.findMany({
       orderBy: { createdAt: "desc" },
       take: 5,
-      select: {
-        id: true,
-        name: true,
-        createdAt: true,
-        status: true,
-      },
+      select: { id: true, name: true, createdAt: true, status: true },
     });
 
-    // Get latest 5 payments
     const recentPayments = await db.payment.findMany({
       orderBy: { paymentDate: "desc" },
       take: 5,
@@ -28,27 +42,22 @@ export async function GET() {
         amount: true,
         paymentDate: true,
         status: true,
-        member: {
-          select: { name: true },
-        },
+        member: { select: { name: true } },
       },
     });
 
-    // Merge and sort by date
     const activities = [
       ...recentMembers.map((m) => ({
+        id: m.id,
         type: "member" as const,
         title: `New member: ${m.name}`,
-        description: `Joined as ${m.status}`,
         date: m.createdAt.toISOString(),
-        iconType: "member" as const,
       })),
       ...recentPayments.map((p) => ({
+        id: p.id,
         type: "payment" as const,
         title: `Payment from ${p.member.name}`,
-        description: `₹${p.amount} — ${p.status}`,
         date: p.paymentDate.toISOString(),
-        iconType: "payment" as const,
       })),
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 

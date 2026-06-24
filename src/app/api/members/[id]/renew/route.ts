@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { logActivity } from "@/lib/activityLog";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -48,6 +49,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
         },
       }),
     ]);
+
+    logActivity("member_renewed", `Membership renewed for ${member.name}`, `Amount: ₹${amount}, Valid till: ${validTill}`, { memberId: id, paymentId: payment.id });
 
     return NextResponse.json({
       payment: {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAppStore, type Page } from '@/store/appStore';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/tooltip';
 import { NotificationBell } from './NotificationBell';
 import { CommandPalette } from './CommandPalette';
+import { ShortcutsDialog } from './ShortcutsDialog';
 import {
   LayoutDashboard,
   Users,
@@ -51,6 +52,8 @@ import {
   BookOpen,
   CircleHelp,
   Search,
+  BarChart3,
+  Activity,
 } from 'lucide-react';
 
 const navItems: { page: Page; label: string; icon: React.ElementType }[] = [
@@ -61,6 +64,8 @@ const navItems: { page: Page; label: string; icon: React.ElementType }[] = [
   { page: 'sections', label: 'Sections', icon: Layers },
   { page: 'payments', label: 'Payments', icon: CreditCard },
   { page: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
+  { page: 'reports', label: 'Reports', icon: BarChart3 },
+  { page: 'activity', label: 'Activity', icon: Activity },
   { page: 'settings', label: 'Settings', icon: Settings },
 ];
 
@@ -69,6 +74,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const [libraryName, setLibraryName] = useState('Library Management System');
   const [stats, setStats] = useState({ members: 0, seats: 0 });
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/settings')
@@ -88,6 +94,37 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {});
   }, []);
+
+  // Global keyboard shortcuts: Cmd/Ctrl+1-9 for page nav, Cmd/Ctrl+D for dark mode
+  const pageByNum = useCallback((num: number): Page | null => {
+    const pages: Page[] = ['dashboard', 'members', 'seats', 'floors', 'sections', 'payments', 'whatsapp', 'reports', 'activity', 'settings'];
+    // 0 maps to the last page (Settings), 1-9 maps to first 9
+    const index = num === 0 ? 9 : num - 1;
+    return pages[index] || null;
+  }, []);
+
+  useEffect(() => {
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+      // Don't intercept if user is typing in an input/textarea
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return;
+
+      const num = parseInt(e.key);
+      if (num >= 0 && num <= 9) {
+        e.preventDefault();
+        const page = pageByNum(num);
+        if (page) setCurrentPage(page);
+        return;
+      }
+      if (e.key === 'd') {
+        e.preventDefault();
+        setTheme(theme === 'dark' ? 'light' : 'dark');
+      }
+    };
+    document.addEventListener('keydown', handleGlobalShortcuts);
+    return () => document.removeEventListener('keydown', handleGlobalShortcuts);
+  }, [setCurrentPage, setTheme, theme, pageByNum]);
 
   const handleLogout = async () => {
     try {
@@ -175,15 +212,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <TooltipTrigger asChild>
                   <button
                     className="text-[10px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors flex items-center gap-1"
-                    onClick={() => {
-                      document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
+                    onClick={() => setShortcutsOpen(true)}
                   >
                     <CircleHelp className="w-3 h-3" />
-                    <span>Help</span>
+                    <span>Shortcuts</span>
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>Scroll to top</TooltipContent>
+                <TooltipContent>Keyboard shortcuts</TooltipContent>
               </Tooltip>
             </div>
           </div>
@@ -193,14 +228,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <TooltipTrigger asChild>
                 <button
                   className="text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors p-1"
-                  onClick={() => {
-                    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
+                  onClick={() => setShortcutsOpen(true)}
                 >
                   <CircleHelp className="w-4 h-4" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Back to top</TooltipContent>
+              <TooltipContent>Keyboard shortcuts</TooltipContent>
             </Tooltip>
           </div>
         </SidebarFooter>
@@ -273,6 +306,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </p>
         </footer>
       </SidebarInset>
+      <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <CommandPalette />
     </SidebarProvider>
   );

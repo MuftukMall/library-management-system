@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { logActivity } from "@/lib/activityLog";
 import { Prisma } from "@prisma/client";
 
 // GET /api/members - List members with pagination, search, filters
@@ -131,6 +132,8 @@ export async function POST(request: NextRequest) {
         data: { status: "occupied" },
       });
     }
+
+    logActivity("member_created", `New member added: ${member.name}`, `Phone: ${member.phone}${seatId ? ", Seat assigned" : ""}`, { memberId: member.id });
 
     return NextResponse.json({
       ...member,

@@ -12,6 +12,8 @@ import { SectionsPage } from '@/components/sections/SectionsPage';
 import { PaymentsPage } from '@/components/payments/PaymentsPage';
 import { SettingsPage } from '@/components/settings/SettingsPage';
 import { WhatsAppPage } from '@/components/whatsapp/WhatsAppPage';
+import { ReportsPage } from '@/components/reports/ReportsPage';
+import { ActivityLogPage } from '@/components/activity/ActivityLogPage';
 
 export default function Home() {
   const { currentPage, isAuthenticated, setAuthenticated } = useAppStore();
@@ -47,6 +49,10 @@ export default function Home() {
         return <SettingsPage />;
       case 'whatsapp':
         return <WhatsAppPage />;
+      case 'reports':
+        return <ReportsPage />;
+      case 'activity':
+        return <ActivityLogPage />;
       default:
         return <DashboardPage />;
     }

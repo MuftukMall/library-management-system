@@ -82,7 +82,7 @@ function formatNumber(value: number) {
 }
 
 interface ActivityItem {
-  id: string; type: string; title: string; date: string;
+  id: string; type: string; title: string; date: string; details?: string;
 }
 
 interface ExpiringMember {
@@ -367,34 +367,55 @@ export function DashboardPage() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.5 }}>
         <Card>
           <CardHeader className="pb-3 px-5 pt-5">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 text-primary">
-                <Activity className="w-4 h-4" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 text-primary">
+                  <Activity className="w-4 h-4" />
+                </div>
+                <CardTitle className="text-sm font-semibold">Recent Activity</CardTitle>
               </div>
-              <CardTitle className="text-sm font-semibold">Recent Activity</CardTitle>
+              {activities.length > 0 && (
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground" onClick={() => setCurrentPage('activity')}>
+                  View all →
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className="px-5 pb-5">
             {activities.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No recent activity</p>
+              <div className="flex flex-col items-center py-6 text-muted-foreground">
+                <Activity className="w-8 h-8 opacity-30 mb-2" />
+                <p className="text-sm">No recent activity</p>
+                <p className="text-xs mt-1 opacity-60">Actions will appear here as you use the system</p>
+              </div>
             ) : (
-              <div className="space-y-3">
-                {activities.slice(0, 8).map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3">
+              <div className="space-y-1 max-h-80 overflow-y-auto custom-scrollbar">
+                {activities.slice(0, 8).map((activity, index) => (
+                  <motion.div
+                    key={activity.id}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.04 }}
+                    className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/40 transition-colors cursor-default"
+                  >
                     <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold ${
                       activity.type === 'member' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' :
                       activity.type === 'payment' ? 'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300' :
+                      activity.type === 'seat' ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300' :
                       'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
                     }`}>
-                      {activity.type === 'member' ? 'U' : '₹'}
+                      {activity.type === 'member' ? '👤' : activity.type === 'payment' ? '₹' : activity.type === 'seat' ? '💺' : '⚙'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm">{activity.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-sm leading-snug">{activity.title}</p>
+                      {activity.details && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{activity.details}</p>
+                      )}
+                      <p className="text-[11px] text-muted-foreground/60 mt-0.5">
                         {formatDistanceToNow(new Date(activity.date), { addSuffix: true })}
                       </p>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}

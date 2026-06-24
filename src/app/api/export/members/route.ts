@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { logActivity } from "@/lib/activityLog";
 
 // GET /api/export/members?format=csv - Export members as CSV
 export async function GET() {
@@ -45,6 +46,8 @@ export async function GET() {
     ]);
 
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+
+    logActivity("data_exported", "Members data exported as CSV", `${members.length} records exported`);
 
     return new NextResponse(csv, {
       headers: {

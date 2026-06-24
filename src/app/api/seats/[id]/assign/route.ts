@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { logActivity } from "@/lib/activityLog";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -58,6 +59,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
         },
       }),
     ]);
+
+    logActivity("seat_assigned", `Seat ${seat.seatNumber} assigned to ${member.name}`, `Floor: ${updatedSeat.floor?.name}, Section: ${updatedSeat.section?.name || "None"}`, { seatId: id, memberId });
 
     return NextResponse.json({
       seat: {

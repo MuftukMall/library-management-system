@@ -1,10 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 
-// GET /api/members/[id] - Get member profile with payment history
 export async function GET(
-  request: NextRequest,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -14,11 +13,10 @@ export async function GET(
     const member = await db.member.findUnique({
       where: { id },
       include: {
-        seat: { select: { id: true, seatNumber: true } },
-        floor: { select: { id: true, name: true } },
-        section: { select: { id: true, name: true } },
-        payments: {
-          orderBy: { paymentDate: 'desc' },
+        seat: {
+          include: {
+            section: { include: { floor: true } },
+          },
         },
       },
     });
@@ -27,32 +25,31 @@ export async function GET(
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    const payments = member.payments.map((p) => ({
-      id: p.id,
-      receiptNo: p.receiptNo,
-      amount: p.amount,
-      paymentDate: p.paymentDate?.toISOString() || '',
-      validTill: p.validTill?.toISOString() || '',
-      status: p.status,
-    }));
+    const settings = await db.setting.findMany();
+    const settingsMap = Object.fromEntries(settings.map((s) => [s.key, s.value]));
 
     return NextResponse.json({
       member: {
         id: member.id,
         name: member.name,
         phone: member.phone,
-        whatsapp: member.whatsapp,
         address: member.address,
-        joinDate: member.joinDate?.toISOString() || '',
-        expiryDate: member.expiryDate?.toISOString() || '',
+        joinDate: member.joinDate,
+        expiryDate: member.expiryDate,
         fee: member.fee,
         status: member.status,
-        notes: member.notes,
-        seat: member.seat,
-        floor: member.floor,
-        section: member.section,
       },
-      payments,
+      seat: member.seat ? {
+        seatNumber: member.seat.seatNumber,
+        section: member.seat.section?.name || '',
+        floor: member.seat.section?.floor?.name || '',
+      } : null,
+      library: {
+        name: settingsMap.libraryName || 'Library',
+        phone: settingsMap.phone || '',
+        address: settingsMap.address || '',
+        email: settingsMap.email || '',
+      },
     });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

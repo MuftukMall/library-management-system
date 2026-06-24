@@ -16,6 +16,8 @@ import {
   MessageCircle,
   Settings,
   Search,
+  BarChart3,
+  Activity,
 } from 'lucide-react';
 import { useAppStore, type Page } from '@/store/appStore';
 
@@ -27,6 +29,8 @@ const navItems: { page: Page; label: string; icon: React.ElementType; shortcut: 
   { page: 'sections', label: 'Sections', icon: Layers, shortcut: 'E' },
   { page: 'payments', label: 'Payments', icon: CreditCard, shortcut: 'P' },
   { page: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, shortcut: 'W' },
+  { page: 'reports', label: 'Reports', icon: BarChart3, shortcut: 'R' },
+  { page: 'activity', label: 'Activity', icon: Activity, shortcut: 'A' },
   { page: 'settings', label: 'Settings', icon: Settings, shortcut: 'T' },
 ];
 

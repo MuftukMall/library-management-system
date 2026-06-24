@@ -1,0 +1,750 @@
+     1→'use client';
+     2→
+     3→import { useState, useCallback } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { format, differenceInDays } from 'date-fns';
+     6→import { toast } from 'sonner';
+     7→import { motion } from 'framer-motion';
+     8→import { Card, CardContent } from '@/components/ui/card';
+     9→import { Button } from '@/components/ui/button';
+    10→import { Input } from '@/components/ui/input';
+    11→import { Label } from '@/components/ui/label';
+    12→import { Badge } from '@/components/ui/badge';
+    13→import {
+    14→  Table,
+    15→  TableBody,
+    16→  TableCell,
+    17→  TableHead,
+    18→  TableHeader,
+    19→  TableRow,
+    20→} from '@/components/ui/table';
+    21→import {
+    22→  Dialog,
+    23→  DialogContent,
+    24→  DialogHeader,
+    25→  DialogTitle,
+    26→  DialogFooter,
+    27→} from '@/components/ui/dialog';
+    28→import {
+    29→  AlertDialog,
+    30→  AlertDialogAction,
+    31→  AlertDialogCancel,
+    32→  AlertDialogContent,
+    33→  AlertDialogDescription,
+    34→  AlertDialogFooter,
+    35→  AlertDialogHeader,
+    36→  AlertDialogTitle,
+    37→} from '@/components/ui/alert-dialog';
+    38→import {
+    39→  Select,
+    40→  SelectContent,
+    41→  SelectItem,
+    42→  SelectTrigger,
+    43→  SelectValue,
+    44→} from '@/components/ui/select';
+    45→import {
+    46→  Popover,
+    47→  PopoverContent,
+    48→  PopoverTrigger,
+    49→} from '@/components/ui/popover';
+    50→import { Calendar } from '@/components/ui/calendar';
+    51→import { Skeleton } from '@/components/ui/skeleton';
+    52→import { ScrollArea } from '@/components/ui/scroll-area';
+    53→import {
+    54→  Search,
+    55→  Plus,
+    56→  Eye,
+    57→  Pencil,
+    58→  Trash2,
+    59→  RefreshCw,
+    60→  Download,
+    61→  ChevronLeft,
+    62→  ChevronRight,
+    63→  Loader2,
+    64→  Users,
+    65→  UserPlus,
+    66→  IdCard,
+    67→} from 'lucide-react';
+    68→import { MemberCard } from './MemberCard';
+    69→
+    70→interface Member {
+    71→  id: string;
+    72→  name: string;
+    73→  phone: string;
+    74→  whatsapp?: string;
+    75→  address?: string;
+    76→  joinDate: string;
+    77→  expiryDate: string;
+    78→  fee: number;
+    79→  status: 'active' | 'expired';
+    80→  seatId?: string;
+    81→  seatNumber?: string;
+    82→  floorId?: string;
+    83→  floorName?: string;
+    84→  sectionId?: string;
+    85→  sectionName?: string;
+    86→}
+    87→
+    88→interface Floor { id: string; name: string; }
+    89→interface Section { id: string; name: string; floorId: string; }
+    90→
+    91→const PAGE_SIZE = 20;
+    92→
+    93→function getInitials(name: string) {
+    94→  const parts = name.trim().split(/\s+/);
+    95→  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    96→  return name.slice(0, 2).toUpperCase();
+    97→}
+    98→
+    99→function isExpiringSoon(expiryDate: string) {
+   100→  if (!expiryDate) return false;
+   101→  const days = differenceInDays(new Date(expiryDate), new Date());
+   102→  return days >= 0 && days <= 7;
+   103→}
+   104→
+   105→function getAvatarColor(name: string) {
+   106→  const colors = [
+   107→    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+   108→    'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
+   109→    'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300',
+   110→    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+   111→    'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+   112→    'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+   113→  ];
+   114→  let hash = 0;
+   115→  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+   116→  return colors[Math.abs(hash) % colors.length];
+   117→}
+   118→
+   119→export function MembersPage() {
+   120→  const queryClient = useQueryClient();
+   121→  const [search, setSearch] = useState('');
+   122→  const [statusFilter, setStatusFilter] = useState<string>('all');
+   123→  const [floorFilter, setFloorFilter] = useState<string>('all');
+   124→  const [sectionFilter, setSectionFilter] = useState<string>('all');
+   125→  const [page, setPage] = useState(1);
+   126→
+   127→  // Dialogs
+   128→  const [addOpen, setAddOpen] = useState(false);
+   129→  const [editOpen, setEditOpen] = useState(false);
+   130→  const [viewOpen, setViewOpen] = useState(false);
+   131→  const [deleteOpen, setDeleteOpen] = useState(false);
+   132→  const [renewOpen, setRenewOpen] = useState(false);
+   133→  const [cardMemberId, setCardMemberId] = useState('');
+   134→  const [cardOpen, setCardOpen] = useState(false);
+   135→  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+   136→
+   137→  // Form state
+   138→  const [form, setForm] = useState({
+   139→    name: '', phone: '', whatsapp: '', address: '',
+   140→    joinDate: new Date().toISOString().split('T')[0],
+   141→    expiryDate: '', floorId: '', sectionId: '', seatId: '', fee: 0,
+   142→  });
+   143→  const [renewForm, setRenewForm] = useState({
+   144→    amount: 0, paymentDate: new Date().toISOString().split('T')[0], validTill: '',
+   145→  });
+   146→  const [formLoading, setFormLoading] = useState(false);
+   147→
+   148→  // Queries
+   149→  const { data, isLoading } = useQuery({
+   150→    queryKey: ['members', search, statusFilter, floorFilter, sectionFilter, page],
+   151→    queryFn: () => {
+   152→      const params = new URLSearchParams({
+   153→        page: String(page), limit: String(PAGE_SIZE), search,
+   154→        status: statusFilter, floorId: floorFilter, sectionId: sectionFilter,
+   155→      });
+   156→      return fetch(`/api/members?${params}`).then((r) => r.json()).then((d) => ({ members: (d.members || []).map((m: Record<string, unknown>) => ({ ...m, seatNumber: (m.seat as Record<string, unknown>)?.seatNumber, floorName: (m.floor as Record<string, unknown>)?.name, sectionName: (m.section as Record<string, unknown>)?.name })), pagination: d.pagination }));
+   157→    },
+   158→  });
+   159→
+   160→  const { data: floors } = useQuery<Floor[]>({
+   161→    queryKey: ['floors'],
+   162→    queryFn: () => fetch('/api/floors').then((r) => r.json()).then((d) => d.floors),
+   163→  });
+   164→
+   165→  const { data: sections } = useQuery<Section[]>({
+   166→    queryKey: ['sections', form.floorId],
+   167→    queryFn: () => fetch(`/api/sections?floorId=${form.floorId}`).then((r) => r.json()).then((d) => d.sections),
+   168→    enabled: !!form.floorId,
+   169→  });
+   170→
+   171→  const { data: editSections } = useQuery<Section[]>({
+   172→    queryKey: ['sections-edit', form.floorId],
+   173→    queryFn: () => fetch(`/api/sections?floorId=${form.floorId}`).then((r) => r.json()).then((d) => d.sections),
+   174→    enabled: !!form.floorId,
+   175→  });
+   176→
+   177→  const { data: viewMember, isLoading: viewLoading } = useQuery({
+   178→    queryKey: ['member', selectedMember?.id],
+   179→    queryFn: () => fetch(`/api/members/${selectedMember!.id}`).then((r) => r.json()).then((m: Record<string, unknown>) => ({ ...m, seatNumber: (m.seat as Record<string, unknown>)?.seatNumber, floorName: (m.floor as Record<string, unknown>)?.name, sectionName: (m.section as Record<string, unknown>)?.name })),
+   180→    enabled: !!selectedMember?.id && viewOpen,
+   181→  });
+   182→
+   183→  const { data: availableSeats } = useQuery({
+   184→    queryKey: ['available-seats', form.sectionId, selectedMember?.id],
+   185→    queryFn: () => fetch(`/api/seats?sectionId=${form.sectionId}&status=available`).then((r) => r.json()).then((d) => d.seats || []),
+   186→    enabled: !!form.sectionId,
+   187→  });
+   188→
+   189→  const members = data?.members || [];
+   190→  const total = data?.pagination?.total || 0;
+   191→  const totalPages = Math.ceil(total / PAGE_SIZE);
+   192→
+   193→  const updateForm = (key: string, value: string | number) => {
+   194→    setForm((prev) => ({
+   195→      ...prev,
+   196→      ...(key === 'floorId' ? { floorId: value, sectionId: '', seatId: '' } :
+   197→      key === 'sectionId' ? { sectionId: value, seatId: '' } :
+   198→      { [key]: value }),
+   199→    }));
+   200→  };
+   201→
+   202→  const resetForm = useCallback(() => {
+   203→    setForm({
+   204→      name: '', phone: '', whatsapp: '', address: '',
+   205→      joinDate: new Date().toISOString().split('T')[0],
+   206→      expiryDate: '', floorId: '', sectionId: '', seatId: '', fee: 0,
+   207→    });
+   208→  }, []);
+   209→
+   210→  const openEdit = (member: Member) => {
+   211→    setSelectedMember(member);
+   212→    setForm({
+   213→      name: member.name, phone: member.phone, whatsapp: member.whatsapp || '',
+   214→      address: member.address || '', joinDate: member.joinDate,
+   215→      expiryDate: member.expiryDate, floorId: member.floorId || '',
+   216→      sectionId: member.sectionId || '', seatId: member.seatId || '',
+   217→      fee: member.fee,
+   218→    });
+   219→    setEditOpen(true);
+   220→  };
+   221→
+   222→  const openView = (member: Member) => {
+   223→    setSelectedMember(member);
+   224→    setViewOpen(true);
+   225→  };
+   226→
+   227→  const openRenew = (member: Member) => {
+   228→    setSelectedMember(member);
+   229→    setRenewForm({ amount: member.fee, paymentDate: new Date().toISOString().split('T')[0], validTill: '' });
+   230→    setRenewOpen(true);
+   231→  };
+   232→
+   233→  // Mutations
+   234→  const addMutation = useMutation({
+   235→    mutationFn: async () => {
+   236→      setFormLoading(true);
+   237→      const res = await fetch('/api/members', {
+   238→        method: 'POST', headers: { 'Content-Type': 'application/json' },
+   239→        body: JSON.stringify(form),
+   240→      });
+   241→      const data = await res.json();
+   242→      if (!res.ok) throw new Error(data.error || 'Failed to add member');
+   243→      return data;
+   244→    },
+   245→    onSuccess: () => { toast.success('Member added successfully'); setAddOpen(false); resetForm(); queryClient.invalidateQueries({ queryKey: ['members'] }); },
+   246→    onError: (e) => toast.error(e.message),
+   247→    onSettled: () => setFormLoading(false),
+   248→  });
+   249→
+   250→  const editMutation = useMutation({
+   251→    mutationFn: async () => {
+   252→      setFormLoading(true);
+   253→      const res = await fetch(`/api/members/${selectedMember!.id}`, {
+   254→        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+   255→        body: JSON.stringify(form),
+   256→      });
+   257→      const data = await res.json();
+   258→      if (!res.ok) throw new Error(data.error || 'Failed to update member');
+   259→      return data;
+   260→    },
+   261→    onSuccess: () => { toast.success('Member updated successfully'); setEditOpen(false); queryClient.invalidateQueries({ queryKey: ['members'] }); },
+   262→    onError: (e) => toast.error(e.message),
+   263→    onSettled: () => setFormLoading(false),
+   264→  });
+   265→
+   266→  const deleteMutation = useMutation({
+   267→    mutationFn: async () => {
+   268→      const res = await fetch(`/api/members/${selectedMember!.id}`, { method: 'DELETE' });
+   269→      if (!res.ok) throw new Error('Failed to delete member');
+   270→    },
+   271→    onSuccess: () => { toast.success('Member deleted successfully'); setDeleteOpen(false); queryClient.invalidateQueries({ queryKey: ['members'] }); },
+   272→    onError: () => toast.error('Failed to delete member'),
+   273→  });
+   274→
+   275→  const renewMutation = useMutation({
+   276→    mutationFn: async () => {
+   277→      setFormLoading(true);
+   278→      const res = await fetch(`/api/members/${selectedMember!.id}/renew`, {
+   279→        method: 'POST', headers: { 'Content-Type': 'application/json' },
+   280→        body: JSON.stringify(renewForm),
+   281→      });
+   282→      const data = await res.json();
+   283→      if (!res.ok) throw new Error(data.error || 'Failed to renew');
+   284→      return data;
+   285→    },
+   286→    onSuccess: () => { toast.success('Membership renewed successfully'); setRenewOpen(false); queryClient.invalidateQueries({ queryKey: ['members'] }); },
+   287→    onError: (e) => toast.error(e.message),
+   288→    onSettled: () => setFormLoading(false),
+   289→  });
+   290→
+   291→  const handleExport = () => {
+   292→    window.open('/api/export/members', '_blank');
+   293→    toast.success('Exporting members to CSV...');
+   294→  };
+   295→
+   296→  const allSeats = availableSeats || [];
+   297→
+   298→  const renderMemberForm = (isEdit: boolean) => {
+   299→    const sects = isEdit ? (editSections || []) : (sections || []);
+   300→    const seats = allSeats;
+   301→
+   302→    return (
+   303→      <div className="grid gap-4 py-2">
+   304→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   305→          <div className="space-y-2">
+   306→            <Label>Name *</Label>
+   307→            <Input value={form.name} onChange={(e) => updateForm('name', e.target.value)} placeholder="Member name" />
+   308→          </div>
+   309→          <div className="space-y-2">
+   310→            <Label>Phone *</Label>
+   311→            <Input value={form.phone} onChange={(e) => updateForm('phone', e.target.value)} placeholder="Phone number" />
+   312→          </div>
+   313→        </div>
+   314→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   315→          <div className="space-y-2">
+   316→            <Label>WhatsApp</Label>
+   317→            <Input value={form.whatsapp} onChange={(e) => updateForm('whatsapp', e.target.value)} placeholder="WhatsApp number" />
+   318→          </div>
+   319→          <div className="space-y-2">
+   320→            <Label>Address</Label>
+   321→            <Input value={form.address} onChange={(e) => updateForm('address', e.target.value)} placeholder="Address" />
+   322→          </div>
+   323→        </div>
+   324→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   325→          <div className="space-y-2">
+   326→            <Label>Join Date</Label>
+   327→            <Popover>
+   328→              <PopoverTrigger asChild>
+   329→                <Button variant="outline" className="w-full justify-start text-left font-normal">
+   330→                  {form.joinDate ? format(new Date(form.joinDate), 'PPP') : 'Pick a date'}
+   331→                </Button>
+   332→              </PopoverTrigger>
+   333→              <PopoverContent className="w-auto p-0" align="start">
+   334→                <Calendar mode="single" selected={form.joinDate ? new Date(form.joinDate) : undefined} onSelect={(d) => d && updateForm('joinDate', format(d, 'yyyy-MM-dd'))} />
+   335→              </PopoverContent>
+   336→            </Popover>
+   337→          </div>
+   338→          <div className="space-y-2">
+   339→            <Label>Expiry Date</Label>
+   340→            <Popover>
+   341→              <PopoverTrigger asChild>
+   342→                <Button variant="outline" className="w-full justify-start text-left font-normal">
+   343→                  {form.expiryDate ? format(new Date(form.expiryDate), 'PPP') : 'Pick a date'}
+   344→                </Button>
+   345→              </PopoverTrigger>
+   346→              <PopoverContent className="w-auto p-0" align="start">
+   347→                <Calendar mode="single" selected={form.expiryDate ? new Date(form.expiryDate) : undefined} onSelect={(d) => d && updateForm('expiryDate', format(d, 'yyyy-MM-dd'))} />
+   348→              </PopoverContent>
+   349→            </Popover>
+   350→          </div>
+   351→        </div>
+   352→        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   353→          <div className="space-y-2">
+   354→            <Label>Floor</Label>
+   355→            <Select value={form.floorId} onValueChange={(v) => updateForm('floorId', v)}>
+   356→              <SelectTrigger><SelectValue placeholder="Select floor" /></SelectTrigger>
+   357→              <SelectContent>
+   358→                {floors?.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+   359→              </SelectContent>
+   360→            </Select>
+   361→          </div>
+   362→          <div className="space-y-2">
+   363→            <Label>Section</Label>
+   364→            <Select value={form.sectionId} onValueChange={(v) => updateForm('sectionId', v)} disabled={!form.floorId}>
+   365→              <SelectTrigger><SelectValue placeholder="Select section" /></SelectTrigger>
+   366→              <SelectContent>
+   367→                {sects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+   368→              </SelectContent>
+   369→            </Select>
+   370→          </div>
+   371→          <div className="space-y-2">
+   372→            <Label>Seat</Label>
+   373→            <Select value={form.seatId} onValueChange={(v) => updateForm('seatId', v)} disabled={!form.sectionId}>
+   374→              <SelectTrigger><SelectValue placeholder="Select seat" /></SelectTrigger>
+   375→              <SelectContent>
+   376→                {Array.isArray(availableSeats) && availableSeats.map((s: { id: string; seatNumber: string }) => (
+   377→                  <SelectItem key={s.id} value={s.id}>{s.seatNumber}</SelectItem>
+   378→                ))}
+   379→              </SelectContent>
+   380→            </Select>
+   381→          </div>
+   382→        </div>
+   383→        <div className="space-y-2">
+   384→          <Label>Fee (₹)</Label>
+   385→          <Input type="number" value={form.fee} onChange={(e) => updateForm('fee', Number(e.target.value))} placeholder="0" />
+   386→        </div>
+   387→      </div>
+   388→    );
+   389→  };
+   390→
+   391→  return (
+   392→    <div className="space-y-4 page-enter">
+   393→      {/* Gradient header bar */}
+   394→      <div className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-4 md:p-5 text-white">
+   395→        <div className="flex items-center justify-between">
+   396→          <div>
+   397→            <h2 className="text-lg font-bold">Members</h2>
+   398→            <p className="text-sm text-white/70 mt-0.5">Manage your library members</p>
+   399→          </div>
+   400→          {total > 0 && (
+   401→            <Badge variant="secondary" className="bg-white/20 text-white border-0 text-xs">
+   402→              {total} total
+   403→            </Badge>
+   404→          )}
+   405→        </div>
+   406→      </div>
+   407→
+   408→      {/* Header with search and filters */}
+   409→      <div className="flex flex-col sm:flex-row gap-3">
+   410→        <div className="relative flex-1">
+   411→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   412→          <Input
+   413→            placeholder="Search members..."
+   414→            value={search}
+   415→            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+   416→            className="pl-9"
+   417→          />
+   418→        </div>
+   419→        <div className="flex gap-2 flex-wrap">
+   420→          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+   421→            <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+   422→            <SelectContent>
+   423→              <SelectItem value="all">All Status</SelectItem>
+   424→              <SelectItem value="active">Active</SelectItem>
+   425→              <SelectItem value="expired">Expired</SelectItem>
+   426→            </SelectContent>
+   427→          </Select>
+   428→          <Select value={floorFilter} onValueChange={(v) => { setFloorFilter(v); setSectionFilter('all'); setPage(1); }}>
+   429→            <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+   430→            <SelectContent>
+   431→              <SelectItem value="all">All Floors</SelectItem>
+   432→              {floors?.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+   433→            </SelectContent>
+   434→          </Select>
+   435→          <Button size="sm" variant="outline" onClick={handleExport}>
+   436→            <Download className="h-4 w-4 mr-1" /> CSV
+   437→          </Button>
+   438→          <Button size="sm" onClick={() => { resetForm(); setAddOpen(true); }}>
+   439→            <Plus className="h-4 w-4 mr-1" /> Add Member
+   440→          </Button>
+   441→        </div>
+   442→      </div>
+   443→
+   444→      {/* Table */}
+   445→      <Card>
+   446→        <CardContent className="p-0">
+   447→          {isLoading ? (
+   448→            <div className="p-4 space-y-3">
+   449→              {Array.from({ length: 5 }).map((_, i) => (
+   450→                <div key={i} className="flex gap-4">
+   451→                  <Skeleton className="h-5 w-32" />
+   452→                  <Skeleton className="h-5 w-24" />
+   453→                  <Skeleton className="h-5 w-20" />
+   454→                  <Skeleton className="h-5 w-24" />
+   455→                  <Skeleton className="h-5 w-16" />
+   456→                </div>
+   457→              ))}
+   458→            </div>
+   459→          ) : members.length === 0 ? (
+   460→            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+   461→              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+   462→                <Users className="h-8 w-8 opacity-40" />
+   463→              </div>
+   464→              <p className="text-sm font-medium">No members found</p>
+   465→              <p className="text-xs mt-1 text-muted-foreground/70">Try adjusting your search or filters, or add your first member</p>
+   466→              <Button size="sm" className="mt-4" onClick={() => { resetForm(); setAddOpen(true); }}>
+   467→                <UserPlus className="h-4 w-4 mr-1.5" /> Add Your First Member
+   468→              </Button>
+   469→            </div>
+   470→          ) : (
+   471→            <>
+   472→              <div className="overflow-x-auto">
+   473→                <Table>
+   474→                  <TableHeader>
+   475→                    <TableRow>
+   476→                      <TableHead>Name</TableHead>
+   477→                      <TableHead className="hidden sm:table-cell">Phone</TableHead>
+   478→                      <TableHead className="hidden md:table-cell">Seat</TableHead>
+   479→                      <TableHead className="hidden lg:table-cell">Expiry Date</TableHead>
+   480→                      <TableHead>Status</TableHead>
+   481→                      <TableHead className="text-right">Actions</TableHead>
+   482→                    </TableRow>
+   483→                  </TableHeader>
+   484→                  <TableBody>
+   485→                    {members.map((member: Member, idx: number) => {
+   486→                      const expiring = isExpiringSoon(member.expiryDate);
+   487→                      return (
+   488→                        <TableRow key={member.id} className={idx % 2 === 1 ? 'bg-muted/30' : ''}>
+   489→                          <TableCell>
+   490→                            <div className="flex items-center gap-2.5">
+   491→                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 ${getAvatarColor(member.name)}`}>
+   492→                                {getInitials(member.name)}
+   493→                              </div>
+   494→                              <div className="flex items-center gap-1.5">
+   495→                                <span className="font-medium">{member.name}</span>
+   496→                                {expiring && member.status === 'active' && (
+   497→                                  <span className="relative flex h-2 w-2" title="Expiring soon">
+   498→                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+   499→                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
+   500→                                  </span>
+   501→                                )}
+   502→                              </div>
+   503→                            </div>
+   504→                          </TableCell>
+   505→                          <TableCell className="hidden sm:table-cell text-muted-foreground">{member.phone}</TableCell>
+   506→                          <TableCell className="hidden md:table-cell text-muted-foreground">{member.seatNumber || '—'}</TableCell>
+   507→                          <TableCell className="hidden lg:table-cell">
+   508→                            <span className={expiring && member.status === 'active' ? 'text-orange-600 dark:text-orange-400 font-medium' : 'text-muted-foreground'}>
+   509→                              {member.expiryDate ? format(new Date(member.expiryDate), 'dd MMM yyyy') : '—'}
+   510→                            </span>
+   511→                          </TableCell>
+   512→                          <TableCell>
+   513→                            {member.status === 'active' && expiring ? (
+   514→                              <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border-0">
+   515→                                Expiring
+   516→                              </Badge>
+   517→                            ) : (
+   518→                              <Badge
+   519→                                variant={member.status === 'active' ? 'default' : 'destructive'}
+   520→                                className={member.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 border-0'}
+   521→                              >
+   522→                                {member.status === 'active' ? 'Active' : 'Expired'}
+   523→                              </Badge>
+   524→                            )}
+   525→                          </TableCell>
+   526→                          <TableCell className="text-right">
+   527→                            <div className="flex items-center justify-end gap-1">
+   528→                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openView(member)} title="View">
+   529→                                <Eye className="h-4 w-4" />
+   530→                              </Button>
+   531→                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(member)} title="Edit">
+   532→                                <Pencil className="h-4 w-4" />
+   533→                              </Button>
+   534→                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openRenew(member)} title="Renew">
+   535→                                <RefreshCw className="h-4 w-4" />
+   536→                              </Button>
+   537→                              <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => { setCardMemberId(member.id); setCardOpen(true); }} title="Print Card">
+   538→                                <IdCard className="h-4 w-4" />
+   539→                              </Button>
+   540→                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelectedMember(member); setDeleteOpen(true); }} title="Delete">
+   541→                                <Trash2 className="h-4 w-4" />
+   542→                              </Button>
+   543→                            </div>
+   544→                          </TableCell>
+   545→                        </TableRow>
+   546→                      );
+   547→                    })}
+   548→                  </TableBody>
+   549→                </Table>
+   550→              </div>
+   551→
+   552→              {/* Pagination */}
+   553→              {totalPages > 1 && (
+   554→                <div className="flex items-center justify-between px-4 py-3 border-t">
+   555→                  <p className="text-sm text-muted-foreground">
+   556→                    Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+   557→                  </p>
+   558→                  <div className="flex items-center gap-2">
+   559→                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+   560→                      <ChevronLeft className="h-4 w-4" />
+   561→                    </Button>
+   562→                    <span className="text-sm">{page} / {totalPages}</span>
+   563→                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+   564→                      <ChevronRight className="h-4 w-4" />
+   565→                    </Button>
+   566→                  </div>
+   567→                </div>
+   568→              )}
+   569→            </>
+   570→          )}
+   571→        </CardContent>
+   572→      </Card>
+   573→
+   574→      {/* Add Member Dialog */}
+   575→      <Dialog open={addOpen} onOpenChange={(o) => { setAddOpen(o); if (!o) resetForm(); }}>
+   576→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar">
+   577→          <DialogHeader>
+   578→            <DialogTitle>Add New Member</DialogTitle>
+   579→          </DialogHeader>
+   580→          {renderMemberForm(false)}
+   581→          <DialogFooter>
+   582→            <Button variant="outline" onClick={() => { setAddOpen(false); resetForm(); }}>Cancel</Button>
+   583→            <Button onClick={() => addMutation.mutate()} disabled={formLoading || !form.name || !form.phone}>
+   584→              {formLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+   585→              Add Member
+   586→            </Button>
+   587→          </DialogFooter>
+   588→        </DialogContent>
+   589→      </Dialog>
+   590→
+   591→      {/* Edit Member Dialog */}
+   592→      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+   593→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar">
+   594→          <DialogHeader>
+   595→            <DialogTitle>Edit Member</DialogTitle>
+   596→          </DialogHeader>
+   597→          {renderMemberForm(true)}
+   598→          <DialogFooter>
+   599→            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+   600→            <Button onClick={() => editMutation.mutate()} disabled={formLoading}>
+   601→              {formLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+   602→              Save Changes
+   603→            </Button>
+   604→          </DialogFooter>
+   605→        </DialogContent>
+   606→      </Dialog>
+   607→
+   608→      {/* View Member Dialog */}
+   609→      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+   610→        <DialogContent className="max-w-lg max-h-[90vh]">
+   611→          <DialogHeader>
+   612→            <DialogTitle>Member Details</DialogTitle>
+   613→          </DialogHeader>
+   614→          {viewLoading ? (
+   615→            <div className="space-y-3 p-4">
+   616→              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-5 w-full" />)}
+   617→            </div>
+   618→          ) : viewMember ? (
+   619→            <ScrollArea className="max-h-[60vh] pr-2 custom-scrollbar">
+   620→              <div className="space-y-4">
+   621→                <div className="grid grid-cols-2 gap-3 text-sm">
+   622→                  <div><span className="text-muted-foreground">Name:</span><p className="font-medium">{viewMember.name}</p></div>
+   623→                  <div><span className="text-muted-foreground">Phone:</span><p className="font-medium">{viewMember.phone}</p></div>
+   624→                  <div><span className="text-muted-foreground">WhatsApp:</span><p className="font-medium">{viewMember.whatsapp || '—'}</p></div>
+   625→                  <div><span className="text-muted-foreground">Address:</span><p className="font-medium">{viewMember.address || '—'}</p></div>
+   626→                  <div><span className="text-muted-foreground">Join Date:</span><p className="font-medium">{viewMember.joinDate ? format(new Date(viewMember.joinDate), 'dd MMM yyyy') : '—'}</p></div>
+   627→                  <div><span className="text-muted-foreground">Expiry Date:</span><p className="font-medium">{viewMember.expiryDate ? format(new Date(viewMember.expiryDate), 'dd MMM yyyy') : '—'}</p></div>
+   628→                  <div><span className="text-muted-foreground">Floor:</span><p className="font-medium">{viewMember.floorName || '—'}</p></div>
+   629→                  <div><span className="text-muted-foreground">Section:</span><p className="font-medium">{viewMember.sectionName || '—'}</p></div>
+   630→                  <div><span className="text-muted-foreground">Seat:</span><p className="font-medium">{viewMember.seatNumber || '—'}</p></div>
+   631→                  <div><span className="text-muted-foreground">Fee:</span><p className="font-medium">₹{viewMember.fee}</p></div>
+   632→                  <div><span className="text-muted-foreground">Status:</span>
+   633→                    <p>
+   634→                      <Badge variant={viewMember.status === 'active' ? 'default' : 'destructive'}
+   635→                        className={viewMember.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 border-0'}>
+   636→                        {viewMember.status === 'active' ? 'Active' : 'Expired'}
+   637→                      </Badge>
+   638→                    </p>
+   639→                  </div>
+   640→                </div>
+   641→
+   642→                {/* Payment History */}
+   643→                {viewMember.payments && viewMember.payments.length > 0 && (
+   644→                  <div>
+   645→                    <h4 className="text-sm font-semibold mb-2">Payment History</h4>
+   646→                    <div className="max-h-48 overflow-y-auto custom-scrollbar">
+   647→                      <Table>
+   648→                        <TableHeader>
+   649→                          <TableRow>
+   650→                            <TableHead>Date</TableHead>
+   651→                            <TableHead>Amount</TableHead>
+   652→                            <TableHead>Valid Till</TableHead>
+   653→                          </TableRow>
+   654→                        </TableHeader>
+   655→                        <TableBody>
+   656→                          {viewMember.payments.map((p: { id: string; paymentDate: string; amount: number; validTill: string }) => (
+   657→                            <TableRow key={p.id}>
+   658→                              <TableCell className="text-xs">{p.paymentDate ? format(new Date(p.paymentDate), 'dd MMM yyyy') : '—'}</TableCell>
+   659→                              <TableCell className="text-xs">₹{p.amount}</TableCell>
+   660→                              <TableCell className="text-xs">{p.validTill ? format(new Date(p.validTill), 'dd MMM yyyy') : '—'}</TableCell>
+   661→                            </TableRow>
+   662→                          ))}
+   663→                        </TableBody>
+   664→                      </Table>
+   665→                    </div>
+   666→                  </div>
+   667→                )}
+   668→              </div>
+   669→            </ScrollArea>
+   670→          ) : null}
+   671→          <DialogFooter>
+   672→            <Button variant="outline" onClick={() => setViewOpen(false)}>Close</Button>
+   673→            {selectedMember && (
+   674→              <Button onClick={() => { setViewOpen(false); openRenew(selectedMember); }}>
+   675→                <RefreshCw className="h-4 w-4 mr-1" /> Renew
+   676→              </Button>
+   677→            )}
+   678→          </DialogFooter>
+   679→        </DialogContent>
+   680→      </Dialog>
+   681→
+   682→      {/* Renew Dialog */}
+   683→      <Dialog open={renewOpen} onOpenChange={setRenewOpen}>
+   684→        <DialogContent className="max-w-sm">
+   685→          <DialogHeader>
+   686→            <DialogTitle>Renew Membership</DialogTitle>
+   687→          </DialogHeader>
+   688→          <div className="grid gap-4 py-2">
+   689→            <div className="space-y-2">
+   690→              <Label>Amount (₹)</Label>
+   691→              <Input type="number" value={renewForm.amount} onChange={(e) => setRenewForm((p) => ({ ...p, amount: Number(e.target.value) }))} />
+   692→            </div>
+   693→            <div className="space-y-2">
+   694→              <Label>Payment Date</Label>
+   695→              <Popover>
+   696→                <PopoverTrigger asChild>
+   697→                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+   698→                    {renewForm.paymentDate ? format(new Date(renewForm.paymentDate), 'PPP') : 'Pick a date'}
+   699→                  </Button>
+   700→                </PopoverTrigger>
+   701→                <PopoverContent className="w-auto p-0" align="start">
+   702→                  <Calendar mode="single" selected={new Date(renewForm.paymentDate)} onSelect={(d) => d && setRenewForm((p) => ({ ...p, paymentDate: format(d, 'yyyy-MM-dd') }))} />
+   703→                </PopoverContent>
+   704→              </Popover>
+   705→            </div>
+   706→            <div className="space-y-2">
+   707→              <Label>Valid Till</Label>
+   708→              <Popover>
+   709→                <PopoverTrigger asChild>
+   710→                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+   711→                    {renewForm.validTill ? format(new Date(renewForm.validTill), 'PPP') : 'Pick a date'}
+   712→                  </Button>
+   713→                </PopoverTrigger>
+   714→                <PopoverContent className="w-auto p-0" align="start">
+   715→                  <Calendar mode="single" selected={renewForm.validTill ? new Date(renewForm.validTill) : undefined} onSelect={(d) => d && setRenewForm((p) => ({ ...p, validTill: format(d, 'yyyy-MM-dd') }))} />
+   716→                </PopoverContent>
+   717→              </Popover>
+   718→            </div>
+   719→          </div>
+   720→          <DialogFooter>
+   721→            <Button variant="outline" onClick={() => setRenewOpen(false)}>Cancel</Button>
+   722→            <Button onClick={() => renewMutation.mutate()} disabled={formLoading}>
+   723→              {formLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+   724→              Renew
+   725→            </Button>
+   726→          </DialogFooter>
+   727→        </DialogContent>
+   728→      </Dialog>
+   729→
+   730→      {/* Delete Confirmation */}
+   731→      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+   732→        <AlertDialogContent>
+   733→          <AlertDialogHeader>
+   734→            <AlertDialogTitle>Delete Member</AlertDialogTitle>
+   735→            <AlertDialogDescription>
+   736→              Are you sure you want to delete {selectedMember?.name}? This action cannot be undone.
+   737→            </AlertDialogDescription>
+   738→          </AlertDialogHeader>
+   739→          <AlertDialogFooter>
+   740→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   741→            <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-white hover:bg-destructive/90">
+   742→              Delete
+   743→            </AlertDialogAction>
+   744→          </AlertDialogFooter>
+   745→        </AlertDialogContent>
+   746→      </AlertDialog>
+   747→      <MemberCard memberId={cardMemberId} open={cardOpen} onOpenChange={setCardOpen} />
+   748→    </div>
+   749→  );
+   750→}

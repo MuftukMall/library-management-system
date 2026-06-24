@@ -8,7 +8,9 @@ export type Page =
   | "sections"
   | "payments"
   | "settings"
-  | "whatsapp";
+  | "whatsapp"
+  | "reports"
+  | "activity";
 
 interface AppState {
   currentPage: Page;

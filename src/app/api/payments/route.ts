@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { logActivity } from "@/lib/activityLog";
 import { Prisma } from "@prisma/client";
 
 // GET /api/payments - List payments with filters
@@ -101,6 +102,8 @@ export async function POST(request: NextRequest) {
         member: { select: { id: true, name: true, phone: true } },
       },
     });
+
+    logActivity("payment_created", `Payment of ₹${payment.amount} received from ${member.name}`, `Receipt: ${receiptNo}`, { paymentId: payment.id, memberId });
 
     return NextResponse.json({
       ...payment,

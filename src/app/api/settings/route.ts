@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { logActivity } from "@/lib/activityLog";
 
 // GET /api/settings - Get all settings as key-value object
 export async function GET() {
@@ -44,6 +45,8 @@ export async function PUT(request: NextRequest) {
     );
 
     await Promise.all(updates);
+
+    logActivity("settings_updated", "Library settings updated", `${Object.keys(body).join(", ")} changed`);
 
     // Return all settings
     const settings = await db.setting.findMany();
