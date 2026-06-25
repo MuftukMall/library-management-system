@@ -1,0 +1,1243 @@
+     1→'use client';
+     2→
+     3→import { useState } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { toast } from 'sonner';
+     6→import { motion } from 'framer-motion';
+     7→import { Card, CardContent } from '@/components/ui/card';
+     8→import { Button } from '@/components/ui/button';
+     9→import { Input } from '@/components/ui/input';
+    10→import { Label } from '@/components/ui/label';
+    11→import { Badge } from '@/components/ui/badge';
+    12→import { Skeleton } from '@/components/ui/skeleton';
+    13→import {
+    14→  Select,
+    15→  SelectContent,
+    16→  SelectItem,
+    17→  SelectTrigger,
+    18→  SelectValue,
+    19→} from '@/components/ui/select';
+    20→import {
+    21→  Dialog,
+    22→  DialogContent,
+    23→  DialogHeader,
+    24→  DialogTitle,
+    25→  DialogFooter,
+    26→} from '@/components/ui/dialog';
+    27→import {
+    28→  AlertDialog,
+    29→  AlertDialogAction,
+    30→  AlertDialogCancel,
+    31→  AlertDialogContent,
+    32→  AlertDialogDescription,
+    33→  AlertDialogFooter,
+    34→  AlertDialogHeader,
+    35→  AlertDialogTitle,
+    36→} from '@/components/ui/alert-dialog';
+    37→import {
+    38→  Table,
+    39→  TableBody,
+    40→  TableCell,
+    41→  TableHead,
+    42→  TableHeader,
+    43→  TableRow,
+    44→} from '@/components/ui/table';
+    45→import {
+    46→  Tabs,
+    47→  TabsContent,
+    48→  TabsList,
+    49→  TabsTrigger,
+    50→} from '@/components/ui/tabs';
+    51→import {
+    52→  Plus,
+    53→  Pencil,
+    54→  Trash2,
+    55→  Armchair,
+    56→  Map,
+    57→  List,
+    58→  UserPlus,
+    59→  UserMinus,
+    60→  Loader2,
+    61→  Search,
+    62→  Eye,
+    63→  Check,
+    64→  User as UserIcon,
+    65→  Building2,
+    66→  Layers,
+    67→  Users,
+    68→} from 'lucide-react';
+    69→
+    70→// ── Shared types ──────────────────────────────────────────────────────
+    71→
+    72→interface Seat {
+    73→  id: string;
+    74→  seatNumber: string;
+    75→  floorId: string;
+    76→  floorName?: string;
+    77→  sectionId: string;
+    78→  sectionName?: string;
+    79→  status: 'available' | 'occupied';
+    80→  memberId?: string;
+    81→  memberName?: string;
+    82→}
+    83→
+    84→interface Floor {
+    85→  id: string;
+    86→  name: string;
+    87→  sectionCount?: number;
+    88→  seatCount?: number;
+    89→}
+    90→
+    91→interface Section {
+    92→  id: string;
+    93→  name: string;
+    94→  floorId: string;
+    95→  floorName?: string;
+    96→  seatCount?: number;
+    97→  memberCount?: number;
+    98→}
+    99→
+   100→// ── Main Component ────────────────────────────────────────────────────
+   101→
+   102→export function SeatsPage() {
+   103→  return (
+   104→    <div className="space-y-4 page-enter">
+   105→      {/* Gradient header */}
+   106→      <div className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 p-4 md:p-5 text-white">
+   107→        <div className="flex items-center gap-3">
+   108→          <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+   109→            <Armchair className="w-5 h-5" />
+   110→          </div>
+   111→          <div>
+   112→            <h2 className="text-lg font-bold">Seats</h2>
+   113→            <p className="text-sm text-white/70 mt-0.5">Manage seats, floors & sections</p>
+   114→          </div>
+   115→        </div>
+   116→      </div>
+   117→
+   118→      <Tabs defaultValue="seats" className="w-full">
+   119→        <TabsList className="w-full grid grid-cols-3">
+   120→          <TabsTrigger value="seats" className="gap-1.5 text-xs sm:text-sm">
+   121→            <Armchair className="w-3.5 h-3.5" />
+   122→            <span className="hidden sm:inline">Seats</span>
+   123→          </TabsTrigger>
+   124→          <TabsTrigger value="floors" className="gap-1.5 text-xs sm:text-sm">
+   125→            <Building2 className="w-3.5 h-3.5" />
+   126→            <span className="hidden sm:inline">Floors</span>
+   127→          </TabsTrigger>
+   128→          <TabsTrigger value="sections" className="gap-1.5 text-xs sm:text-sm">
+   129→            <Layers className="w-3.5 h-3.5" />
+   130→            <span className="hidden sm:inline">Sections</span>
+   131→          </TabsTrigger>
+   132→        </TabsList>
+   133→
+   134→        <TabsContent value="seats" className="mt-4">
+   135→          <SeatsTab />
+   136→        </TabsContent>
+   137→        <TabsContent value="floors" className="mt-4">
+   138→          <FloorsTab />
+   139→        </TabsContent>
+   140→        <TabsContent value="sections" className="mt-4">
+   141→          <SectionsTab />
+   142→        </TabsContent>
+   143→      </Tabs>
+   144→    </div>
+   145→  );
+   146→}
+   147→
+   148→// ── Seats Tab ─────────────────────────────────────────────────────────
+   149→
+   150→function SeatsTab() {
+   151→  const queryClient = useQueryClient();
+   152→  const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+   153→  const [floorFilter, setFloorFilter] = useState<string>('all');
+   154→  const [sectionFilter, setSectionFilter] = useState<string>('all');
+   155→  const [statusFilter, setStatusFilter] = useState<string>('all');
+   156→
+   157→  // Dialogs
+   158→  const [addOpen, setAddOpen] = useState(false);
+   159→  const [editOpen, setEditOpen] = useState(false);
+   160→  const [deleteOpen, setDeleteOpen] = useState(false);
+   161→  const [assignOpen, setAssignOpen] = useState(false);
+   162→  const [unassignOpen, setUnassignOpen] = useState(false);
+   163→  const [viewOpen, setViewOpen] = useState(false);
+   164→  const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null);
+   165→
+   166→  // Form
+   167→  const [form, setForm] = useState({ seatNumber: '', floorId: '', sectionId: '' });
+   168→  const [memberSearch, setMemberSearch] = useState('');
+   169→  const [assignMemberId, setAssignMemberId] = useState('');
+   170→  const [loading, setLoading] = useState(false);
+   171→
+   172→  // Queries
+   173→  const { data: floors = [] } = useQuery<Floor[]>({
+   174→    queryKey: ['floors'],
+   175→    queryFn: () => fetch('/api/floors').then((r) => r.json()).then((d) => d.floors),
+   176→  });
+   177→
+   178→  const { data: sections = [] } = useQuery<Section[]>({
+   179→    queryKey: ['sections', floorFilter],
+   180→    queryFn: () => {
+   181→      const params = floorFilter !== 'all' ? `?floorId=${floorFilter}` : '';
+   182→      return fetch(`/api/sections${params}`).then((r) => r.json()).then((d) => d.sections);
+   183→    },
+   184→  });
+   185→
+   186→  const { data: formSections = [] } = useQuery<Section[]>({
+   187→    queryKey: ['form-sections', form.floorId],
+   188→    queryFn: () => fetch(`/api/sections?floorId=${form.floorId}`).then((r) => r.json()).then((d) => d.sections),
+   189→    enabled: !!form.floorId,
+   190→  });
+   191→
+   192→  const { data: seats = [], isLoading } = useQuery<Seat[]>({
+   193→    queryKey: ['seats', floorFilter, sectionFilter, statusFilter],
+   194→    queryFn: () => {
+   195→      const params = new URLSearchParams();
+   196→      if (floorFilter !== 'all') params.set('floorId', floorFilter);
+   197→      if (sectionFilter !== 'all') params.set('sectionId', sectionFilter);
+   198→      if (statusFilter !== 'all') params.set('status', statusFilter);
+   199→      const qs = params.toString();
+   200→      return fetch(`/api/seats${qs ? `?${qs}` : ''}`).then((r) => r.json()).then((d) => (d.seats || []).map((s: Record<string, unknown>) => ({ ...s, floorName: (s.floor as Record<string, unknown>)?.name, sectionName: (s.section as Record<string, unknown>)?.name, memberName: (s.member as Record<string, unknown>)?.name || null })));
+   201→    },
+   202→  });
+   203→
+   204→  const { data: searchResults = [] } = useQuery<{ id: string; name: string; phone: string }[]>({
+   205→    queryKey: ['member-search', memberSearch],
+   206→    queryFn: () => fetch(`/api/members?search=${memberSearch}&limit=10`).then((r) => r.json()).then((d) => d.members || d || []),
+   207→    enabled: memberSearch.length >= 2,
+   208→  });
+   209→
+   210→  const availableSections = viewMode === 'list' ? sections : formSections;
+   211→
+   212→  // Group seats by section for map view
+   213→  const seatsBySection = seats.reduce<Record<string, Seat[]>>((acc, seat) => {
+   214→    const key = seat.sectionId || 'unassigned';
+   215→    if (!acc[key]) acc[key] = [];
+   216→    acc[key].push(seat);
+   217→    return acc;
+   218→  }, {});
+   219→
+   220→  // Summary counts
+   221→  const totalSeats = seats.length;
+   222→  const occupiedSeats = seats.filter((s) => s.status === 'occupied').length;
+   223→  const availableSeatsCount = totalSeats - occupiedSeats;
+   224→
+   225→  // Mutations
+   226→  const addMutation = useMutation({
+   227→    mutationFn: async () => {
+   228→      setLoading(true);
+   229→      const res = await fetch('/api/seats', {
+   230→        method: 'POST', headers: { 'Content-Type': 'application/json' },
+   231→        body: JSON.stringify(form),
+   232→      });
+   233→      const data = await res.json();
+   234→      if (!res.ok) throw new Error(data.error || 'Failed to add seat');
+   235→      return data;
+   236→    },
+   237→    onSuccess: () => { toast.success('Seat added successfully'); setAddOpen(false); setForm({ seatNumber: '', floorId: '', sectionId: '' }); queryClient.invalidateQueries({ queryKey: ['seats'] }); },
+   238→    onError: (e) => toast.error(e.message),
+   239→    onSettled: () => setLoading(false),
+   240→  });
+   241→
+   242→  const editMutation = useMutation({
+   243→    mutationFn: async () => {
+   244→      setLoading(true);
+   245→      const res = await fetch(`/api/seats/${selectedSeat!.id}`, {
+   246→        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+   247→        body: JSON.stringify(form),
+   248→      });
+   249→      const data = await res.json();
+   250→      if (!res.ok) throw new Error(data.error || 'Failed to update seat');
+   251→      return data;
+   252→    },
+   253→    onSuccess: () => { toast.success('Seat updated'); setEditOpen(false); queryClient.invalidateQueries({ queryKey: ['seats'] }); },
+   254→    onError: (e) => toast.error(e.message),
+   255→    onSettled: () => setLoading(false),
+   256→  });
+   257→
+   258→  const deleteMutation = useMutation({
+   259→    mutationFn: async () => {
+   260→      const res = await fetch(`/api/seats/${selectedSeat!.id}`, { method: 'DELETE' });
+   261→      if (!res.ok) throw new Error('Failed to delete seat');
+   262→    },
+   263→    onSuccess: () => { toast.success('Seat deleted'); setDeleteOpen(false); queryClient.invalidateQueries({ queryKey: ['seats'] }); },
+   264→    onError: () => toast.error('Failed to delete seat'),
+   265→  });
+   266→
+   267→  const assignMutation = useMutation({
+   268→    mutationFn: async () => {
+   269→      setLoading(true);
+   270→      const res = await fetch(`/api/seats/${selectedSeat!.id}/assign`, {
+   271→        method: 'POST', headers: { 'Content-Type': 'application/json' },
+   272→        body: JSON.stringify({ memberId: assignMemberId }),
+   273→      });
+   274→      const data = await res.json();
+   275→      if (!res.ok) throw new Error(data.error || 'Failed to assign seat');
+   276→      return data;
+   277→    },
+   278→    onSuccess: () => { toast.success('Seat assigned'); setAssignOpen(false); setMemberSearch(''); setAssignMemberId(''); queryClient.invalidateQueries({ queryKey: ['seats'] }); },
+   279→    onError: (e) => toast.error(e.message),
+   280→    onSettled: () => setLoading(false),
+   281→  });
+   282→
+   283→  const unassignMutation = useMutation({
+   284→    mutationFn: async () => {
+   285→      const res = await fetch(`/api/seats/${selectedSeat!.id}/unassign`, { method: 'POST' });
+   286→      if (!res.ok) throw new Error('Failed to unassign seat');
+   287→    },
+   288→    onSuccess: () => { toast.success('Seat unassigned'); setUnassignOpen(false); queryClient.invalidateQueries({ queryKey: ['seats'] }); },
+   289→    onError: () => toast.error('Failed to unassign seat'),
+   290→  });
+   291→
+   292→  const openEdit = (seat: Seat) => {
+   293→    setSelectedSeat(seat);
+   294→    setForm({ seatNumber: seat.seatNumber, floorId: seat.floorId, sectionId: seat.sectionId });
+   295→    setEditOpen(true);
+   296→  };
+   297→
+   298→  return (
+   299→    <div className="space-y-4">
+   300→      {/* Tab gradient header */}
+   301→      <div className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 p-3 md:p-4 text-white">
+   302→        <div className="flex items-center justify-between">
+   303→          <div>
+   304→            <h2 className="text-lg font-bold">Seat Management</h2>
+   305→            <p className="text-sm text-white/70">Manage seat assignments and layout</p>
+   306→          </div>
+   307→          <div className="flex gap-2">
+   308→            <Button size="sm" onClick={() => { setForm({ seatNumber: '', floorId: '', sectionId: '' }); setAddOpen(true); }}
+   309→              className="bg-white/20 hover:bg-white/30 text-white border-0">
+   310→              <Plus className="h-4 w-4 mr-1" /> Add Seat
+   311→            </Button>
+   312→          </div>
+   313→        </div>
+   314→      </div>
+   315→
+   316→      {/* Summary bar */}
+   317→      {!isLoading && seats.length > 0 && (
+   318→        <div className="flex items-center gap-4 sm:gap-6 px-1 text-sm">
+   319→          <span className="flex items-center gap-2">
+   320→            <span className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40" />
+   321→            <span className="text-muted-foreground">{totalSeats} Total</span>
+   322→          </span>
+   323→          <span className="flex items-center gap-2">
+   324→            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+   325→            <span className="text-muted-foreground">{occupiedSeats} Occupied</span>
+   326→          </span>
+   327→          <span className="flex items-center gap-2">
+   328→            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+   329→            <span className="text-muted-foreground">{availableSeatsCount} Available</span>
+   330→          </span>
+   331→        </div>
+   332→      )}
+   333→
+   334→      {/* Filters & View Toggle */}
+   335→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+   336→        <div className="flex gap-2 flex-wrap">
+   337→          <Select value={floorFilter} onValueChange={(v) => { setFloorFilter(v); setSectionFilter('all'); }}>
+   338→            <SelectTrigger className="w-[130px]"><SelectValue placeholder="All Floors" /></SelectTrigger>
+   339→            <SelectContent>
+   340→              <SelectItem value="all">All Floors</SelectItem>
+   341→              {floors.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+   342→            </SelectContent>
+   343→          </Select>
+   344→          <Select value={sectionFilter} onValueChange={setSectionFilter}>
+   345→            <SelectTrigger className="w-[130px]"><SelectValue placeholder="All Sections" /></SelectTrigger>
+   346→            <SelectContent>
+   347→              <SelectItem value="all">All Sections</SelectItem>
+   348→              {availableSections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+   349→            </SelectContent>
+   350→          </Select>
+   351→          <Select value={statusFilter} onValueChange={setStatusFilter}>
+   352→            <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+   353→            <SelectContent>
+   354→              <SelectItem value="all">All Status</SelectItem>
+   355→              <SelectItem value="available">Available</SelectItem>
+   356→              <SelectItem value="occupied">Occupied</SelectItem>
+   357→            </SelectContent>
+   358→          </Select>
+   359→        </div>
+   360→
+   361→        {/* Segmented control toggle */}
+   362→        <div className="inline-flex items-center rounded-lg border bg-muted/50 p-0.5 gap-0.5">
+   363→          <button
+   364→            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+   365→              viewMode === 'map'
+   366→                ? 'bg-background text-foreground shadow-sm'
+   367→                : 'text-muted-foreground hover:text-foreground'
+   368→            }`}
+   369→            onClick={() => setViewMode('map')}
+   370→          >
+   371→            <Map className="w-3.5 h-3.5" />
+   372→            Map
+   373→          </button>
+   374→          <button
+   375→            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+   376→              viewMode === 'list'
+   377→                ? 'bg-background text-foreground shadow-sm'
+   378→                : 'text-muted-foreground hover:text-foreground'
+   379→            }`}
+   380→            onClick={() => setViewMode('list')}
+   381→          >
+   382→            <List className="w-3.5 h-3.5" />
+   383→            List
+   384→          </button>
+   385→        </div>
+   386→      </div>
+   387→
+   388→      {isLoading ? (
+   389→        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+   390→          {Array.from({ length: 20 }).map((_, i) => (
+   391→            <Skeleton key={i} className="h-20 rounded-lg" />
+   392→          ))}
+   393→        </div>
+   394→      ) : seats.length === 0 ? (
+   395→        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+   396→          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+   397→            <Armchair className="h-8 w-8 opacity-40" />
+   398→          </div>
+   399→          <p className="text-sm font-medium">No seats found</p>
+   400→          <p className="text-xs mt-1 text-muted-foreground/70">Adjust filters or add new seats to get started</p>
+   401→        </div>
+   402→      ) : viewMode === 'map' ? (
+   403→        /* Seat Map View */
+   404→        <div className="space-y-6">
+   405→          {Object.entries(seatsBySection).map(([sectionId, sectionSeats]) => (
+   406→            <div key={sectionId}>
+   407→              <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+   408→                <span className="w-2 h-2 rounded-full bg-primary" />
+   409→                {sectionSeats[0]?.sectionName || `Section ${sectionId}`}
+   410→                <Badge variant="secondary" className="text-[10px] font-normal px-1.5">
+   411→                  {sectionSeats.filter((s) => s.status === 'occupied').length}/{sectionSeats.length}
+   412→                </Badge>
+   413→              </h4>
+   414→              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+   415→                {sectionSeats.map((seat, index) => (
+   416→                  <motion.div
+   417→                    key={seat.id}
+   418→                    initial={{ opacity: 0, scale: 0.9 }}
+   419→                    animate={{ opacity: 1, scale: 1 }}
+   420→                    transition={{ duration: 0.2, delay: index * 0.02 }}
+   421→                  >
+   422→                    <Card
+   423→                      className={`cursor-pointer transition-all hover:scale-105 hover:shadow-lg animate-pulse-glow ${
+   424→                        seat.status === 'occupied'
+   425→                          ? 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border-amber-200/60 dark:border-amber-800/40'
+   426→                          : 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 border-emerald-200/60 dark:border-emerald-800/40'
+   427→                      }`}
+   428→                      onClick={() => { setSelectedSeat(seat); setViewOpen(true); }}
+   429→                    >
+   430→                      <CardContent className="p-2 text-center">
+   431→                        {seat.status === 'available' ? (
+   432→                          <div className="w-6 h-6 mx-auto mb-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+   433→                            <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+   434→                          </div>
+   435→                        ) : (
+   436→                          <div className="w-6 h-6 mx-auto mb-1 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+   437→                            <UserIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+   438→                          </div>
+   439→                        )}
+   440→                        <p className="text-xs font-medium">{seat.seatNumber}</p>
+   441→                        {seat.memberName && (
+   442→                          <p className="text-[10px] text-muted-foreground truncate mt-0.5">{seat.memberName}</p>
+   443→                        )}
+   444→                      </CardContent>
+   445→                    </Card>
+   446→                  </motion.div>
+   447→                ))}
+   448→              </div>
+   449→            </div>
+   450→          ))}
+   451→          <div className="flex items-center gap-6 text-xs text-muted-foreground">
+   452→            <span className="flex items-center gap-2">
+   453→              <span className="w-4 h-3 rounded bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/40 border border-emerald-200/60 dark:border-emerald-800/40" />
+   454→              Available
+   455→            </span>
+   456→            <span className="flex items-center gap-2">
+   457→              <span className="w-4 h-3 rounded bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/40 dark:to-orange-900/40 border border-amber-200/60 dark:border-amber-800/40" />
+   458→              Occupied
+   459→            </span>
+   460→          </div>
+   461→        </div>
+   462→      ) : (
+   463→        /* List View */
+   464→        <Card>
+   465→          <CardContent className="p-0">
+   466→            <div className="overflow-x-auto">
+   467→              <Table>
+   468→                <TableHeader>
+   469→                  <TableRow>
+   470→                    <TableHead>Seat No.</TableHead>
+   471→                    <TableHead className="hidden sm:table-cell">Floor</TableHead>
+   472→                    <TableHead className="hidden md:table-cell">Section</TableHead>
+   473→                    <TableHead>Status</TableHead>
+   474→                    <TableHead className="hidden sm:table-cell">Member</TableHead>
+   475→                    <TableHead className="text-right">Actions</TableHead>
+   476→                  </TableRow>
+   477→                </TableHeader>
+   478→                <TableBody>
+   479→                  {seats.map((seat, idx) => (
+   480→                    <TableRow key={seat.id} className={idx % 2 === 1 ? 'bg-muted/30' : ''}>
+   481→                      <TableCell className="font-medium">{seat.seatNumber}</TableCell>
+   482→                      <TableCell className="hidden sm:table-cell text-muted-foreground">{seat.floorName || '—'}</TableCell>
+   483→                      <TableCell className="hidden md:table-cell text-muted-foreground">{seat.sectionName || '—'}</TableCell>
+   484→                      <TableCell>
+   485→                        <Badge
+   486→                          variant={seat.status === 'available' ? 'default' : 'destructive'}
+   487→                          className={seat.status === 'available' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-0'}
+   488→                        >
+   489→                          {seat.status === 'available' ? 'Available' : 'Occupied'}
+   490→                        </Badge>
+   491→                      </TableCell>
+   492→                      <TableCell className="hidden sm:table-cell">{seat.memberName || '—'}</TableCell>
+   493→                      <TableCell className="text-right">
+   494→                        <div className="flex items-center justify-end gap-1">
+   495→                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(seat)}>
+   496→                            <Pencil className="h-3.5 w-3.5" />
+   497→                          </Button>
+   498→                          {seat.status === 'available' ? (
+   499→                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedSeat(seat); setMemberSearch(''); setAssignMemberId(''); setAssignOpen(true); }}>
+   500→                              <UserPlus className="h-3.5 w-3.5" />
+   501→                            </Button>
+   502→                          ) : (
+   503→                            <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-500" onClick={() => { setSelectedSeat(seat); setUnassignOpen(true); }}>
+   504→                              <UserMinus className="h-3.5 w-3.5" />
+   505→                            </Button>
+   506→                          )}
+   507→                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelectedSeat(seat); setDeleteOpen(true); }}>
+   508→                            <Trash2 className="h-3.5 w-3.5" />
+   509→                          </Button>
+   510→                        </div>
+   511→                      </TableCell>
+   512→                    </TableRow>
+   513→                  ))}
+   514→                </TableBody>
+   515→              </Table>
+   516→            </div>
+   517→          </CardContent>
+   518→        </Card>
+   519→      )}
+   520→
+   521→      {/* Add Seat Dialog */}
+   522→      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+   523→        <DialogContent className="max-w-sm">
+   524→          <DialogHeader>
+   525→            <DialogTitle>Add Seat</DialogTitle>
+   526→          </DialogHeader>
+   527→          <div className="grid gap-4 py-2">
+   528→            <div className="space-y-2">
+   529→              <Label>Seat Number *</Label>
+   530→              <Input
+   531→                placeholder="e.g., A1"
+   532→                value={form.seatNumber}
+   533→                onChange={(e) => setForm((p) => ({ ...p, seatNumber: e.target.value }))}
+   534→              />
+   535→            </div>
+   536→            <div className="space-y-2">
+   537→              <Label>Floor *</Label>
+   538→              <Select value={form.floorId} onValueChange={(v) => setForm((p) => ({ ...p, floorId: v, sectionId: '' }))}>
+   539→                <SelectTrigger><SelectValue placeholder="Select floor" /></SelectTrigger>
+   540→                <SelectContent>
+   541→                  {floors.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+   542→                </SelectContent>
+   543→              </Select>
+   544→            </div>
+   545→            <div className="space-y-2">
+   546→              <Label>Section *</Label>
+   547→              <Select value={form.sectionId} onValueChange={(v) => setForm((p) => ({ ...p, sectionId: v }))} disabled={!form.floorId}>
+   548→                <SelectTrigger><SelectValue placeholder="Select section" /></SelectTrigger>
+   549→                <SelectContent>
+   550→                  {formSections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+   551→                </SelectContent>
+   552→              </Select>
+   553→            </div>
+   554→          </div>
+   555→          <DialogFooter>
+   556→            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+   557→            <Button onClick={() => addMutation.mutate()} disabled={loading || !form.seatNumber || !form.floorId || !form.sectionId}>
+   558→              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+   559→              Add Seat
+   560→            </Button>
+   561→          </DialogFooter>
+   562→        </DialogContent>
+   563→      </Dialog>
+   564→
+   565→      {/* Edit Seat Dialog */}
+   566→      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+   567→        <DialogContent className="max-w-sm">
+   568→          <DialogHeader>
+   569→            <DialogTitle>Edit Seat</DialogTitle>
+   570→          </DialogHeader>
+   571→          <div className="grid gap-4 py-2">
+   572→            <div className="space-y-2">
+   573→              <Label>Seat Number</Label>
+   574→              <Input value={form.seatNumber} onChange={(e) => setForm((p) => ({ ...p, seatNumber: e.target.value }))} />
+   575→            </div>
+   576→            <div className="space-y-2">
+   577→              <Label>Floor</Label>
+   578→              <Select value={form.floorId} onValueChange={(v) => setForm((p) => ({ ...p, floorId: v, sectionId: '' }))}>
+   579→                <SelectTrigger><SelectValue /></SelectTrigger>
+   580→                <SelectContent>
+   581→                  {floors.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+   582→                </SelectContent>
+   583→              </Select>
+   584→            </div>
+   585→            <div className="space-y-2">
+   586→              <Label>Section</Label>
+   587→              <Select value={form.sectionId} onValueChange={(v) => setForm((p) => ({ ...p, sectionId: v }))} disabled={!form.floorId}>
+   588→                <SelectTrigger><SelectValue /></SelectTrigger>
+   589→                <SelectContent>
+   590→                  {formSections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+   591→                </SelectContent>
+   592→              </Select>
+   593→            </div>
+   594→          </div>
+   595→          <DialogFooter>
+   596→            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+   597→            <Button onClick={() => editMutation.mutate()} disabled={loading}>
+   598→              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+   599→              Save Changes
+   600→            </Button>
+   601→          </DialogFooter>
+   602→        </DialogContent>
+   603→      </Dialog>
+   604→
+   605→      {/* View Seat Dialog */}
+   606→      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+   607→        <DialogContent className="max-w-sm">
+   608→          <DialogHeader>
+   609→            <DialogTitle>Seat Details</DialogTitle>
+   610→          </DialogHeader>
+   611→          {selectedSeat && (
+   612→            <div className="grid gap-3 py-2 text-sm">
+   613→              <div className="flex justify-between">
+   614→                <span className="text-muted-foreground">Seat Number</span>
+   615→                <span className="font-medium">{selectedSeat.seatNumber}</span>
+   616→              </div>
+   617→              <div className="flex justify-between">
+   618→                <span className="text-muted-foreground">Floor</span>
+   619→                <span className="font-medium">{selectedSeat.floorName || '—'}</span>
+   620→              </div>
+   621→              <div className="flex justify-between">
+   622→                <span className="text-muted-foreground">Section</span>
+   623→                <span className="font-medium">{selectedSeat.sectionName || '—'}</span>
+   624→              </div>
+   625→              <div className="flex justify-between items-center">
+   626→                <span className="text-muted-foreground">Status</span>
+   627→                <Badge
+   628→                  variant={selectedSeat.status === 'available' ? 'default' : 'destructive'}
+   629→                  className={selectedSeat.status === 'available' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-0'}
+   630→                >
+   631→                  {selectedSeat.status === 'available' ? 'Available' : 'Occupied'}
+   632→                </Badge>
+   633→              </div>
+   634→              <div className="flex justify-between">
+   635→                <span className="text-muted-foreground">Assigned Member</span>
+   636→                <span className="font-medium">{selectedSeat.memberName || '—'}</span>
+   637→              </div>
+   638→            </div>
+   639→          )}
+   640→          <DialogFooter>
+   641→            <Button variant="outline" onClick={() => setViewOpen(false)}>Close</Button>
+   642→            {selectedSeat?.status === 'available' && (
+   643→              <Button onClick={() => { setViewOpen(false); setMemberSearch(''); setAssignMemberId(''); setAssignOpen(true); }}>
+   644→                <UserPlus className="h-4 w-4 mr-1" /> Assign
+   645→              </Button>
+   646→            )}
+   647→            {selectedSeat?.status === 'occupied' && (
+   648→              <Button variant="destructive" onClick={() => { setViewOpen(false); setUnassignOpen(true); }}>
+   649→                <UserMinus className="h-4 w-4 mr-1" /> Unassign
+   650→              </Button>
+   651→            )}
+   652→          </DialogFooter>
+   653→        </DialogContent>
+   654→      </Dialog>
+   655→
+   656→      {/* Assign Member Dialog */}
+   657→      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+   658→        <DialogContent className="max-w-sm">
+   659→          <DialogHeader>
+   660→            <DialogTitle>Assign Member to Seat {selectedSeat?.seatNumber}</DialogTitle>
+   661→          </DialogHeader>
+   662→          <div className="space-y-3 py-2">
+   663→            <div className="relative">
+   664→              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   665→              <Input
+   666→                placeholder="Search members by name..."
+   667→                value={memberSearch}
+   668→                onChange={(e) => setMemberSearch(e.target.value)}
+   669→                className="pl-9"
+   670→              />
+   671→            </div>
+   672→            {memberSearch.length >= 2 && (
+   673→              <div className="max-h-48 overflow-y-auto border rounded-lg custom-scrollbar">
+   674→                {searchResults.length === 0 ? (
+   675→                  <p className="text-sm text-muted-foreground p-3 text-center">No members found</p>
+   676→                ) : (
+   677→                  searchResults.map((m) => (
+   678→                    <button
+   679→                      key={m.id}
+   680→                      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center justify-between ${
+   681→                        assignMemberId === m.id ? 'bg-accent' : ''
+   682→                      }`}
+   683→                      onClick={() => setAssignMemberId(m.id)}
+   684→                    >
+   685→                      <span>{m.name}</span>
+   686→                      <span className="text-xs text-muted-foreground">{m.phone}</span>
+   687→                    </button>
+   688→                  ))
+   689→                )}
+   690→              </div>
+   691→            )}
+   692→          </div>
+   693→          <DialogFooter>
+   694→            <Button variant="outline" onClick={() => setAssignOpen(false)}>Cancel</Button>
+   695→            <Button onClick={() => assignMutation.mutate()} disabled={loading || !assignMemberId}>
+   696→              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+   697→              Assign
+   698→            </Button>
+   699→          </DialogFooter>
+   700→        </DialogContent>
+   701→      </Dialog>
+   702→
+   703→      {/* Unassign Confirmation */}
+   704→      <AlertDialog open={unassignOpen} onOpenChange={setUnassignOpen}>
+   705→        <AlertDialogContent>
+   706→          <AlertDialogHeader>
+   707→            <AlertDialogTitle>Unassign Seat</AlertDialogTitle>
+   708→            <AlertDialogDescription>
+   709→              Are you sure you want to unassign seat {selectedSeat?.seatNumber} from {selectedSeat?.memberName}?
+   710→            </AlertDialogDescription>
+   711→          </AlertDialogHeader>
+   712→          <AlertDialogFooter>
+   713→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   714→            <AlertDialogAction onClick={() => unassignMutation.mutate()} className="bg-destructive text-white hover:bg-destructive/90">
+   715→              Unassign
+   716→            </AlertDialogAction>
+   717→          </AlertDialogFooter>
+   718→        </AlertDialogContent>
+   719→      </AlertDialog>
+   720→
+   721→      {/* Delete Confirmation */}
+   722→      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+   723→        <AlertDialogContent>
+   724→          <AlertDialogHeader>
+   725→            <AlertDialogTitle>Delete Seat</AlertDialogTitle>
+   726→            <AlertDialogDescription>
+   727→              Are you sure you want to delete seat {selectedSeat?.seatNumber}? This action cannot be undone.
+   728→            </AlertDialogDescription>
+   729→          </AlertDialogHeader>
+   730→          <AlertDialogFooter>
+   731→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   732→            <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-white hover:bg-destructive/90">
+   733→              Delete
+   734→            </AlertDialogAction>
+   735→          </AlertDialogFooter>
+   736→        </AlertDialogContent>
+   737→      </AlertDialog>
+   738→    </div>
+   739→  );
+   740→}
+   741→
+   742→// ── Floors Tab ─────────────────────────────────────────────────────────
+   743→
+   744→function FloorsTab() {
+   745→  const queryClient = useQueryClient();
+   746→  const [addOpen, setAddOpen] = useState(false);
+   747→  const [editOpen, setEditOpen] = useState(false);
+   748→  const [deleteOpen, setDeleteOpen] = useState(false);
+   749→  const [selectedFloor, setSelectedFloor] = useState<Floor | null>(null);
+   750→  const [floorName, setFloorName] = useState('');
+   751→  const [loading, setLoading] = useState(false);
+   752→
+   753→  const { data: floors = [], isLoading } = useQuery<Floor[]>({
+   754→    queryKey: ['floors'],
+   755→    queryFn: () => fetch('/api/floors').then((r) => r.json()).then((d) => (d.floors || []).map((f: Record<string, unknown>) => ({ ...f, sectionCount: (f._count as Record<string, unknown>)?.sections || 0, seatCount: (f._count as Record<string, unknown>)?.seats || 0 }))),
+   756→  });
+   757→
+   758→  const addMutation = useMutation({
+   759→    mutationFn: async () => {
+   760→      setLoading(true);
+   761→      const res = await fetch('/api/floors', {
+   762→        method: 'POST', headers: { 'Content-Type': 'application/json' },
+   763→        body: JSON.stringify({ name: floorName }),
+   764→      });
+   765→      const data = await res.json();
+   766→      if (!res.ok) throw new Error(data.error || 'Failed to add floor');
+   767→      return data;
+   768→    },
+   769→    onSuccess: () => { toast.success('Floor added successfully'); setAddOpen(false); setFloorName(''); queryClient.invalidateQueries({ queryKey: ['floors'] }); },
+   770→    onError: (e) => toast.error(e.message),
+   771→    onSettled: () => setLoading(false),
+   772→  });
+   773→
+   774→  const editMutation = useMutation({
+   775→    mutationFn: async () => {
+   776→      setLoading(true);
+   777→      const res = await fetch(`/api/floors/${selectedFloor!.id}`, {
+   778→        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+   779→        body: JSON.stringify({ name: floorName }),
+   780→      });
+   781→      const data = await res.json();
+   782→      if (!res.ok) throw new Error(data.error || 'Failed to update floor');
+   783→      return data;
+   784→    },
+   785→    onSuccess: () => { toast.success('Floor updated successfully'); setEditOpen(false); setFloorName(''); queryClient.invalidateQueries({ queryKey: ['floors'] }); },
+   786→    onError: (e) => toast.error(e.message),
+   787→    onSettled: () => setLoading(false),
+   788→  });
+   789→
+   790→  const deleteMutation = useMutation({
+   791→    mutationFn: async () => {
+   792→      const res = await fetch(`/api/floors/${selectedFloor!.id}`, { method: 'DELETE' });
+   793→      if (!res.ok) {
+   794→        const data = await res.json();
+   795→        throw new Error(data.error || 'Failed to delete floor');
+   796→      }
+   797→    },
+   798→    onSuccess: () => { toast.success('Floor deleted successfully'); setDeleteOpen(false); queryClient.invalidateQueries({ queryKey: ['floors'] }); },
+   799→    onError: (e) => toast.error(e.message),
+   800→  });
+   801→
+   802→  const openEdit = (floor: Floor) => {
+   803→    setSelectedFloor(floor);
+   804→    setFloorName(floor.name);
+   805→    setEditOpen(true);
+   806→  };
+   807→
+   808→  return (
+   809→    <div className="space-y-4">
+   810→      {/* Tab gradient header */}
+   811→      <div className="rounded-xl bg-gradient-to-r from-emerald-700 to-teal-600 p-3 md:p-4 text-white">
+   812→        <div className="flex items-center justify-between">
+   813→          <div className="flex items-center gap-3">
+   814→            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+   815→              <Building2 className="w-5 h-5" />
+   816→            </div>
+   817→            <div>
+   818→              <h2 className="text-lg font-bold">Floors</h2>
+   819→              <p className="text-sm text-white/70">Manage your library floors</p>
+   820→            </div>
+   821→          </div>
+   822→          {floors.length > 0 && (
+   823→            <Button size="sm" onClick={() => { setFloorName(''); setAddOpen(true); }}
+   824→              className="bg-white/20 hover:bg-white/30 text-white border-0">
+   825→              <Plus className="h-4 w-4 mr-1" /> Add Floor
+   826→            </Button>
+   827→          )}
+   828→        </div>
+   829→      </div>
+   830→
+   831→      {floors.length > 0 && !isLoading && (
+   832→        <Button size="sm" onClick={() => { setFloorName(''); setAddOpen(true); }}>
+   833→          <Plus className="h-4 w-4 mr-1" /> Add Floor
+   834→        </Button>
+   835→      )}
+   836→
+   837→      {isLoading ? (
+   838→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   839→          {Array.from({ length: 6 }).map((_, i) => (
+   840→            <Skeleton key={i} className="h-36 rounded-xl" />
+   841→          ))}
+   842→        </div>
+   843→      ) : floors.length === 0 ? (
+   844→        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+   845→          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+   846→            <Building2 className="h-8 w-8 opacity-40" />
+   847→          </div>
+   848→          <p className="text-sm font-medium">No floors yet</p>
+   849→          <p className="text-xs mt-1 text-muted-foreground/70">Add your first floor to get started</p>
+   850→          <Button size="sm" className="mt-4" onClick={() => { setFloorName(''); setAddOpen(true); }}>
+   851→            <Plus className="h-4 w-4 mr-1" /> Add Your First Floor
+   852→          </Button>
+   853→        </div>
+   854→      ) : (
+   855→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   856→          {floors.map((floor, index) => (
+   857→            <motion.div
+   858→              key={floor.id}
+   859→              initial={{ opacity: 0, y: 20 }}
+   860→              animate={{ opacity: 1, y: 0 }}
+   861→              transition={{ duration: 0.3, delay: index * 0.05 }}
+   862→            >
+   863→              <Card className="hover-card-lift hover:scale-[1.02] group border-l-4 border-l-emerald-500">
+   864→                <CardContent className="p-4">
+   865→                  <div className="flex items-start justify-between">
+   866→                    <div className="flex items-center gap-3">
+   867→                      <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+   868→                        <Building2 className="w-5 h-5" />
+   869→                      </div>
+   870→                      <div>
+   871→                        <h4 className="font-medium">{floor.name}</h4>
+   872→                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+   873→                          <span className="flex items-center gap-1">
+   874→                            <Layers className="w-3 h-3" />
+   875→                            {floor.sectionCount || 0} sections
+   876→                          </span>
+   877→                          <span className="flex items-center gap-1">
+   878→                            <Armchair className="w-3 h-3" />
+   879→                            {floor.seatCount || 0} seats
+   880→                          </span>
+   881→                        </div>
+   882→                      </div>
+   883→                    </div>
+   884→                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+   885→                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(floor)}>
+   886→                        <Pencil className="h-3.5 w-3.5" />
+   887→                      </Button>
+   888→                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelectedFloor(floor); setDeleteOpen(true); }}>
+   889→                        <Trash2 className="h-3.5 w-3.5" />
+   890→                      </Button>
+   891→                    </div>
+   892→                  </div>
+   893→                </CardContent>
+   894→              </Card>
+   895→            </motion.div>
+   896→          ))}
+   897→        </div>
+   898→      )}
+   899→
+   900→      {/* Add Floor Dialog */}
+   901→      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+   902→        <DialogContent className="max-w-sm">
+   903→          <DialogHeader>
+   904→            <DialogTitle>Add Floor</DialogTitle>
+   905→          </DialogHeader>
+   906→          <div className="space-y-2 py-2">
+   907→            <Label>Floor Name</Label>
+   908→            <Input
+   909→              placeholder="e.g., Ground Floor"
+   910→              value={floorName}
+   911→              onChange={(e) => setFloorName(e.target.value)}
+   912→              onKeyDown={(e) => e.key === 'Enter' && floorName && addMutation.mutate()}
+   913→            />
+   914→          </div>
+   915→          <DialogFooter>
+   916→            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+   917→            <Button onClick={() => addMutation.mutate()} disabled={loading || !floorName}>
+   918→              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+   919→              Add Floor
+   920→            </Button>
+   921→          </DialogFooter>
+   922→        </DialogContent>
+   923→      </Dialog>
+   924→
+   925→      {/* Edit Floor Dialog */}
+   926→      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+   927→        <DialogContent className="max-w-sm">
+   928→          <DialogHeader>
+   929→            <DialogTitle>Edit Floor</DialogTitle>
+   930→          </DialogHeader>
+   931→          <div className="space-y-2 py-2">
+   932→            <Label>Floor Name</Label>
+   933→            <Input
+   934→              value={floorName}
+   935→              onChange={(e) => setFloorName(e.target.value)}
+   936→              onKeyDown={(e) => e.key === 'Enter' && floorName && editMutation.mutate()}
+   937→            />
+   938→          </div>
+   939→          <DialogFooter>
+   940→            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+   941→            <Button onClick={() => editMutation.mutate()} disabled={loading || !floorName}>
+   942→              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+   943→              Save Changes
+   944→            </Button>
+   945→          </DialogFooter>
+   946→        </DialogContent>
+   947→      </Dialog>
+   948→
+   949→      {/* Delete Confirmation */}
+   950→      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+   951→        <AlertDialogContent>
+   952→          <AlertDialogHeader>
+   953→            <AlertDialogTitle>Delete Floor</AlertDialogTitle>
+   954→            <AlertDialogDescription>
+   955→              Are you sure you want to delete &quot;{selectedFloor?.name}&quot;? This will also delete all sections and seats in this floor.
+   956→            </AlertDialogDescription>
+   957→          </AlertDialogHeader>
+   958→          <AlertDialogFooter>
+   959→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   960→            <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-white hover:bg-destructive/90">
+   961→              Delete
+   962→            </AlertDialogAction>
+   963→          </AlertDialogFooter>
+   964→        </AlertDialogContent>
+   965→      </AlertDialog>
+   966→    </div>
+   967→  );
+   968→}
+   969→
+   970→// ── Sections Tab ───────────────────────────────────────────────────────
+   971→
+   972→function SectionsTab() {
+   973→  const queryClient = useQueryClient();
+   974→  const [floorFilter, setFloorFilter] = useState<string>('all');
+   975→  const [addOpen, setAddOpen] = useState(false);
+   976→  const [editOpen, setEditOpen] = useState(false);
+   977→  const [deleteOpen, setDeleteOpen] = useState(false);
+   978→  const [selectedSection, setSelectedSection] = useState<Section | null>(null);
+   979→  const [form, setForm] = useState({ name: '', floorId: '' });
+   980→  const [loading, setLoading] = useState(false);
+   981→
+   982→  const { data: floors = [] } = useQuery<Floor[]>({
+   983→    queryKey: ['floors'],
+   984→    queryFn: () => fetch('/api/floors').then((r) => r.json()).then((d) => d.floors),
+   985→  });
+   986→
+   987→  const { data: sections = [], isLoading } = useQuery<Section[]>({
+   988→    queryKey: ['sections', floorFilter],
+   989→    queryFn: () => {
+   990→      const params = floorFilter !== 'all' ? `?floorId=${floorFilter}` : '';
+   991→      return fetch(`/api/sections${params}`).then((r) => r.json()).then((d) => (d.sections || []).map((s: Record<string, unknown>) => ({ ...s, floorName: (s.floor as Record<string, unknown>)?.name, seatCount: (s._count as Record<string, unknown>)?.seats || 0, memberCount: (s._count as Record<string, unknown>)?.members || 0 })));
+   992→    },
+   993→  });
+   994→
+   995→  const addMutation = useMutation({
+   996→    mutationFn: async () => {
+   997→      setLoading(true);
+   998→      const res = await fetch('/api/sections', {
+   999→        method: 'POST', headers: { 'Content-Type': 'application/json' },
+  1000→        body: JSON.stringify(form),
+  1001→      });
+  1002→      const data = await res.json();
+  1003→      if (!res.ok) throw new Error(data.error || 'Failed to add section');
+  1004→      return data;
+  1005→    },
+  1006→    onSuccess: () => { toast.success('Section added successfully'); setAddOpen(false); setForm({ name: '', floorId: '' }); queryClient.invalidateQueries({ queryKey: ['sections'] }); },
+  1007→    onError: (e) => toast.error(e.message),
+  1008→    onSettled: () => setLoading(false),
+  1009→  });
+  1010→
+  1011→  const editMutation = useMutation({
+  1012→    mutationFn: async () => {
+  1013→      setLoading(true);
+  1014→      const res = await fetch(`/api/sections/${selectedSection!.id}`, {
+  1015→        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+  1016→        body: JSON.stringify(form),
+  1017→      });
+  1018→      const data = await res.json();
+  1019→      if (!res.ok) throw new Error(data.error || 'Failed to update section');
+  1020→      return data;
+  1021→    },
+  1022→    onSuccess: () => { toast.success('Section updated successfully'); setEditOpen(false); queryClient.invalidateQueries({ queryKey: ['sections'] }); },
+  1023→    onError: (e) => toast.error(e.message),
+  1024→    onSettled: () => setLoading(false),
+  1025→  });
+  1026→
+  1027→  const deleteMutation = useMutation({
+  1028→    mutationFn: async () => {
+  1029→      const res = await fetch(`/api/sections/${selectedSection!.id}`, { method: 'DELETE' });
+  1030→      if (!res.ok) {
+  1031→        const data = await res.json();
+  1032→        throw new Error(data.error || 'Failed to delete section');
+  1033→      }
+  1034→    },
+  1035→    onSuccess: () => { toast.success('Section deleted successfully'); setDeleteOpen(false); queryClient.invalidateQueries({ queryKey: ['sections'] }); },
+  1036→    onError: (e) => toast.error(e.message),
+  1037→  });
+  1038→
+  1039→  const openEdit = (section: Section) => {
+  1040→    setSelectedSection(section);
+  1041→    setForm({ name: section.name, floorId: section.floorId });
+  1042→    setEditOpen(true);
+  1043→  };
+  1044→
+  1045→  return (
+  1046→    <div className="space-y-4">
+  1047→      {/* Tab gradient header */}
+  1048→      <div className="rounded-xl bg-gradient-to-r from-teal-700 to-emerald-600 p-3 md:p-4 text-white">
+  1049→        <div className="flex items-center justify-between">
+  1050→          <div className="flex items-center gap-3">
+  1051→            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+  1052→              <Layers className="w-5 h-5" />
+  1053→            </div>
+  1054→            <div>
+  1055→              <h2 className="text-lg font-bold">Sections</h2>
+  1056→              <p className="text-sm text-white/70">Manage library sections by floor</p>
+  1057→            </div>
+  1058→          </div>
+  1059→          {sections.length > 0 && !isLoading && (
+  1060→            <Button size="sm" onClick={() => { setForm({ name: '', floorId: '' }); setAddOpen(true); }}
+  1061→              className="bg-white/20 hover:bg-white/30 text-white border-0">
+  1062→              <Plus className="h-4 w-4 mr-1" /> Add Section
+  1063→            </Button>
+  1064→          )}
+  1065→        </div>
+  1066→      </div>
+  1067→
+  1068→      {/* Filters */}
+  1069→      <div className="flex gap-2 flex-wrap items-center">
+  1070→        <Select value={floorFilter} onValueChange={setFloorFilter}>
+  1071→          <SelectTrigger className="w-[150px]"><SelectValue placeholder="All Floors" /></SelectTrigger>
+  1072→          <SelectContent>
+  1073→            <SelectItem value="all">All Floors</SelectItem>
+  1074→            {floors.map((f) => (
+  1075→              <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+  1076→            ))}
+  1077→          </SelectContent>
+  1078→        </Select>
+  1079→        {sections.length > 0 && !isLoading && (
+  1080→          <Button size="sm" onClick={() => { setForm({ name: '', floorId: '' }); setAddOpen(true); }}>
+  1081→            <Plus className="h-4 w-4 mr-1" /> Add Section
+  1082→          </Button>
+  1083→        )}
+  1084→      </div>
+  1085→
+  1086→      {isLoading ? (
+  1087→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  1088→          {Array.from({ length: 6 }).map((_, i) => (
+  1089→            <Skeleton key={i} className="h-36 rounded-xl" />
+  1090→          ))}
+  1091→        </div>
+  1092→      ) : sections.length === 0 ? (
+  1093→        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+  1094→          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+  1095→            <Layers className="h-8 w-8 opacity-40" />
+  1096→          </div>
+  1097→          <p className="text-sm font-medium">No sections found</p>
+  1098→          <p className="text-xs mt-1 text-muted-foreground/70">Add a section to get started</p>
+  1099→          <Button size="sm" className="mt-4" onClick={() => { setForm({ name: '', floorId: '' }); setAddOpen(true); }}>
+  1100→            <Plus className="h-4 w-4 mr-1" /> Add Your First Section
+  1101→          </Button>
+  1102→        </div>
+  1103→      ) : (
+  1104→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  1105→          {sections.map((section, index) => (
+  1106→            <motion.div
+  1107→              key={section.id}
+  1108→              initial={{ opacity: 0, y: 20 }}
+  1109→              animate={{ opacity: 1, y: 0 }}
+  1110→              transition={{ duration: 0.3, delay: index * 0.05 }}
+  1111→            >
+  1112→              <Card className="hover-card-lift hover:scale-[1.02] group border-l-4 border-l-teal-500">
+  1113→                <CardContent className="p-4">
+  1114→                  <div className="flex items-start justify-between">
+  1115→                    <div className="flex items-center gap-3">
+  1116→                      <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400">
+  1117→                        <Layers className="w-5 h-5" />
+  1118→                      </div>
+  1119→                      <div>
+  1120→                        <h4 className="font-medium">{section.name}</h4>
+  1121→                        <p className="text-xs text-muted-foreground">{section.floorName || ''}</p>
+  1122→                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+  1123→                          <span className="flex items-center gap-1">
+  1124→                            <Armchair className="w-3 h-3" />
+  1125→                            {section.seatCount || 0} seats
+  1126→                          </span>
+  1127→                          <span className="flex items-center gap-1">
+  1128→                            <Users className="w-3 h-3" />
+  1129→                            {section.memberCount || 0} members
+  1130→                          </span>
+  1131→                        </div>
+  1132→                      </div>
+  1133→                    </div>
+  1134→                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+  1135→                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(section)}>
+  1136→                        <Pencil className="h-3.5 w-3.5" />
+  1137→                      </Button>
+  1138→                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelectedSection(section); setDeleteOpen(true); }}>
+  1139→                        <Trash2 className="h-3.5 w-3.5" />
+  1140→                      </Button>
+  1141→                    </div>
+  1142→                  </div>
+  1143→                </CardContent>
+  1144→              </Card>
+  1145→            </motion.div>
+  1146→          ))}
+  1147→        </div>
+  1148→      )}
+  1149→
+  1150→      {/* Add Section Dialog */}
+  1151→      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+  1152→        <DialogContent className="max-w-sm">
+  1153→          <DialogHeader>
+  1154→            <DialogTitle>Add Section</DialogTitle>
+  1155→          </DialogHeader>
+  1156→          <div className="grid gap-4 py-2">
+  1157→            <div className="space-y-2">
+  1158→              <Label>Floor *</Label>
+  1159→              <Select value={form.floorId} onValueChange={(v) => setForm((p) => ({ ...p, floorId: v }))}>
+  1160→                <SelectTrigger><SelectValue placeholder="Select floor" /></SelectTrigger>
+  1161→                <SelectContent>
+  1162→                  {floors.map((f) => (
+  1163→                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+  1164→                  ))}
+  1165→                </SelectContent>
+  1166→              </Select>
+  1167→            </div>
+  1168→            <div className="space-y-2">
+  1169→              <Label>Section Name *</Label>
+  1170→              <Input
+  1171→                placeholder="e.g., Reading Area"
+  1172→                value={form.name}
+  1173→                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+  1174→                onKeyDown={(e) => e.key === 'Enter' && form.name && form.floorId && addMutation.mutate()}
+  1175→              />
+  1176→            </div>
+  1177→          </div>
+  1178→          <DialogFooter>
+  1179→            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+  1180→            <Button onClick={() => addMutation.mutate()} disabled={loading || !form.name || !form.floorId}>
+  1181→              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+  1182→              Add Section
+  1183→            </Button>
+  1184→          </DialogFooter>
+  1185→        </DialogContent>
+  1186→      </Dialog>
+  1187→
+  1188→      {/* Edit Section Dialog */}
+  1189→      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+  1190→        <DialogContent className="max-w-sm">
+  1191→          <DialogHeader>
+  1192→            <DialogTitle>Edit Section</DialogTitle>
+  1193→          </DialogHeader>
+  1194→          <div className="grid gap-4 py-2">
+  1195→            <div className="space-y-2">
+  1196→              <Label>Floor</Label>
+  1197→              <Select value={form.floorId} onValueChange={(v) => setForm((p) => ({ ...p, floorId: v }))}>
+  1198→                <SelectTrigger><SelectValue /></SelectTrigger>
+  1199→                <SelectContent>
+  1200→                  {floors.map((f) => (
+  1201→                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+  1202→                  ))}
+  1203→                </SelectContent>
+  1204→              </Select>
+  1205→            </div>
+  1206→            <div className="space-y-2">
+  1207→              <Label>Section Name</Label>
+  1208→              <Input
+  1209→                value={form.name}
+  1210→                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+  1211→              />
+  1212→            </div>
+  1213→          </div>
+  1214→          <DialogFooter>
+  1215→            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+  1216→            <Button onClick={() => editMutation.mutate()} disabled={loading || !form.name}>
+  1217→              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+  1218→              Save Changes
+  1219→            </Button>
+  1220→          </DialogFooter>
+  1221→        </DialogContent>
+  1222→      </Dialog>
+  1223→
+  1224→      {/* Delete Confirmation */}
+  1225→      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+  1226→        <AlertDialogContent>
+  1227→          <AlertDialogHeader>
+  1228→            <AlertDialogTitle>Delete Section</AlertDialogTitle>
+  1229→            <AlertDialogDescription>
+  1230→              Are you sure you want to delete &quot;{selectedSection?.name}&quot;? This will also delete all seats in this section.
+  1231→            </AlertDialogDescription>
+  1232→          </AlertDialogHeader>
+  1233→          <AlertDialogFooter>
+  1234→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+  1235→            <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-white hover:bg-destructive/90">
+  1236→              Delete
+  1237→            </AlertDialogAction>
+  1238→          </AlertDialogFooter>
+  1239→        </AlertDialogContent>
+  1240→      </AlertDialog>
+  1241→    </div>
+  1242→  );
+  1243→}

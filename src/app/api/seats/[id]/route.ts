@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
+import { logActivity } from "@/lib/activityLog";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -87,25 +88,42 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 }
 
-// DELETE /api/seats/[id] - Delete seat (only if available)
+// DELETE /api/seats/[id] - Delete seat (auto-unassigns if occupied)
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
     await requireAuth();
     const { id } = await context.params;
 
-    const seat = await db.seat.findUnique({ where: { id } });
+    const seat = await db.seat.findUnique({
+      where: { id },
+      include: {
+        floor: { select: { name: true } },
+        section: { select: { name: true } },
+        member: { select: { name: true } },
+      },
+    });
     if (!seat) {
       return NextResponse.json({ error: "Seat not found" }, { status: 404 });
     }
 
-    if (seat.status === "occupied") {
-      return NextResponse.json(
-        { error: "Cannot delete an occupied seat. Unassign it first." },
-        { status: 400 }
-      );
+    const seatLabel = `${seat.seatNumber} (${seat.section?.name || ''}, ${seat.floor?.name || ''})`.trim();
+
+    // Auto-unassign if occupied
+    if (seat.status === "occupied" && seat.memberId) {
+      await db.member.update({
+        where: { id: seat.memberId },
+        data: { seatId: null, status: "inactive" },
+      });
     }
 
     await db.seat.delete({ where: { id } });
+
+    logActivity(
+      "seat_unassigned",
+      `Seat deleted: ${seatLabel}`,
+      seat.status === "occupied" ? `Auto-unassigned from ${seat.member?.name || "member"} before deletion` : undefined,
+      { seatId: id, seatNumber: seat.seatNumber, wasOccupied: seat.status === "occupied" }
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {

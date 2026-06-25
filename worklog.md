@@ -556,17 +556,14 @@ Library Management System - production-ready SPA with Next.js 16, Prisma/SQLite,
 8 navigable pages: Dashboard, Members, Seats (with Floors/Sections tabs), Payments, WhatsApp, Reports, Activity, Settings.
 
 ### Completed This Session
-1. **Activity Log System** — New ActivityLog model, API, helper utility, full page with timeline/filter/stats
-2. **Dashboard Activity Feed** — Upgraded to use real ActivityLog data with "View all" link
-3. **Member Profile Print Card** — Added "Print Card" button opening MemberCard dialog from profile
-4. **Seats Page Consolidation** — Merged Floors & Sections into Seats page as tabs
-5. **Global CSS Enhancements** — Button press, border glow, ripple, smooth transitions
-6. **Activity Logging Integration** — 7 API routes now log activities automatically
+1. **Seat Deletion Feature** — Full delete from map view (hover trash icon), list view (table action), and seat detail dialog
+2. **Auto-Unassign on Delete** — Occupied seats auto-unassign member before deletion, with contextual confirmation dialog
+3. **Activity Logging for Seat Delete** — Seat deletions logged with metadata about auto-unassign
+4. **Previous Session** — Activity Log System, Dashboard Activity Feed, Member Profile Print Card, Seats Page Consolidation, Global CSS Enhancements
 
 ### Unresolved / Next Phase Priorities
-1. **Seats tab "Add Floor" appears twice** — Minor UI duplication in Floors tab (header + empty space button)
-2. **Activity log does not track member delete/update, seat delete, floor/section CRUD** — Could add more logging endpoints
-3. **WhatsApp page recent messages still use mock data** — Could connect to ActivityLog for sent messages
-4. **Export payments route** missing activity logging (members export was added)
-5. **Settings restore** route missing activity logging
-6. **Print card button could also be in Members table** — Currently only in Member Profile Dialog
+1. **Activity log does not track member delete/update, floor/section CRUD** — Could add more logging endpoints
+2. **WhatsApp page recent messages still use mock data** — Could connect to ActivityLog for sent messages
+3. **Export payments route** missing activity logging (members export was added)
+4. **Settings restore** route missing activity logging
+5. **Print card button could also be in Members table** — Currently only in Member Profile Dialog

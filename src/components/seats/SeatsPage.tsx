@@ -420,13 +420,20 @@ function SeatsTab() {
                     transition={{ duration: 0.2, delay: index * 0.02 }}
                   >
                     <Card
-                      className={`cursor-pointer transition-all hover:scale-105 hover:shadow-lg animate-pulse-glow ${
+                      className={`cursor-pointer transition-all hover:scale-105 hover:shadow-lg animate-pulse-glow group/seat relative ${
                         seat.status === 'occupied'
                           ? 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border-amber-200/60 dark:border-amber-800/40'
                           : 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 border-emerald-200/60 dark:border-emerald-800/40'
                       }`}
                       onClick={() => { setSelectedSeat(seat); setViewOpen(true); }}
                     >
+                      {/* Delete button on hover */}
+                      <button
+                        className="absolute top-1 right-1 h-5 w-5 rounded-full bg-destructive/90 text-white flex items-center justify-center opacity-0 group-hover/seat:opacity-100 transition-opacity z-10 hover:bg-destructive"
+                        onClick={(e) => { e.stopPropagation(); setSelectedSeat(seat); setDeleteOpen(true); }}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                       <CardContent className="p-2 text-center">
                         {seat.status === 'available' ? (
                           <div className="w-6 h-6 mx-auto mb-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
@@ -637,7 +644,7 @@ function SeatsTab() {
               </div>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setViewOpen(false)}>Close</Button>
             {selectedSeat?.status === 'available' && (
               <Button onClick={() => { setViewOpen(false); setMemberSearch(''); setAssignMemberId(''); setAssignOpen(true); }}>
@@ -649,6 +656,9 @@ function SeatsTab() {
                 <UserMinus className="h-4 w-4 mr-1" /> Unassign
               </Button>
             )}
+            <Button variant="destructive" className="ml-auto" onClick={() => { setViewOpen(false); setDeleteOpen(true); }}>
+              <Trash2 className="h-4 w-4 mr-1" /> Delete
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -724,7 +734,9 @@ function SeatsTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Seat</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete seat {selectedSeat?.seatNumber}? This action cannot be undone.
+              {selectedSeat?.status === 'occupied'
+                ? `Seat ${selectedSeat?.seatNumber} is currently occupied by ${selectedSeat?.memberName || 'a member'}. Deleting will automatically unassign the member.`
+                : `Are you sure you want to delete seat ${selectedSeat?.seatNumber}? This action cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
