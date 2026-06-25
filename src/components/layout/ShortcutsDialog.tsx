@@ -21,12 +21,10 @@ const pageShortcuts: { page: Page; label: string; num: number }[] = [
   { page: 'dashboard', label: 'Dashboard', num: 1 },
   { page: 'members', label: 'Members', num: 2 },
   { page: 'seats', label: 'Seats', num: 3 },
-  { page: 'floors', label: 'Floors', num: 4 },
-  { page: 'sections', label: 'Sections', num: 5 },
-  { page: 'payments', label: 'Payments', num: 6 },
-  { page: 'whatsapp', label: 'WhatsApp', num: 7 },
-  { page: 'reports', label: 'Reports', num: 8 },
-  { page: 'activity', label: 'Activity', num: 9 },
+  { page: 'payments', label: 'Payments', num: 4 },
+  { page: 'whatsapp', label: 'WhatsApp', num: 5 },
+  { page: 'reports', label: 'Reports', num: 6 },
+  { page: 'activity', label: 'Activity', num: 7 },
   { page: 'settings', label: 'Settings', num: 0 },
 ];
 
@@ -47,7 +45,7 @@ export function ShortcutsDialog({ open, onOpenChange }: { open: boolean; onOpenC
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
         const num = parseInt(e.key);
-        if (num >= 0 && num <= 9) {
+        if (num >= 0 && num <= 7) {
           e.preventDefault();
           const shortcut = pageShortcuts.find((s) => s.num === num);
           if (shortcut) {

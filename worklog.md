@@ -501,3 +501,72 @@ The Library Management System is fully functional with 9 pages, 27+ API routes, 
 5. Add attendance/check-in tracking system
 6. Add member notes/remarks field and display in profile
 7. Mobile-responsive table improvements (horizontal scroll cards on small screens)
+
+---
+Task ID: 20
+Agent: fullstack-developer
+Task: Rewrite SeatsPage to include Floor and Section management with tabs
+
+Work Log:
+- Read existing SeatsPage, FloorsPage, SectionsPage, and Tabs UI component
+- Refactored SeatsPage into a parent component with shadcn Tabs (Seats, Floors, Sections)
+- Extracted all existing seat logic into a `SeatsTab` sub-component (unchanged functionality)
+- Ported FloorsPage CRUD into `FloorsTab` sub-component with card grid, stagger animations, border-l-emerald-500
+- Ported SectionsPage CRUD into `SectionsTab` sub-component with floor filter, card grid, border-l-teal-500
+- Updated main header subtitle to "Manage seats, floors & sections"
+- Each tab has its own gradient header matching the original page color scheme
+- Added new imports: Tabs/TabsContent/TabsList/TabsTrigger, Building2, Layers, Users
+- Verified TypeScript compilation — no new errors introduced
+
+Stage Summary:
+- SeatsPage now manages seats, floors, and sections in one place via tabs
+- All three tabs have loading skeletons, empty states, and staggered card animations
+- No API routes or other files were modified
+- Existing seat functionality (map/list view, assign/unassign, all dialogs) preserved exactly
+
+---
+Task ID: 21-26
+Agent: Main
+Task: Remove Floors/Sections as separate pages, integrate into Seats; add Activity Log feature; enhance dashboard & styling
+
+Work Log:
+- Removed 'floors' and 'sections' from Page type union in appStore.ts
+- Removed Floors/Sections nav items from AppLayout (now 8 nav items)
+- Removed FloorsPage/SectionsPage imports and switch cases from page.tsx
+- Updated CommandPalette to remove Floors/Sections entries
+- Updated ShortcutsDialog to remove Floors/Sections, remapped shortcuts (0=Settings, 1-7)
+- Updated AppLayout keyboard shortcut handler (0-7 range)
+- Updated dashboard activity feed to use real ActivityLog API with "View all" link
+- Added CSS micro-interactions: button press effect, border glow animation, ripple effect, selection color, smooth transitions, stagger-children helper
+- Added activity logging to WhatsApp send and Members export API routes
+- Full QA with agent-browser: all 8 pages load clean, Seats page shows 3 working tabs (Seats/Floors/Sections), Activity page with filters works
+
+Stage Summary:
+- Navigation reduced from 10 to 8 pages (Floors & Sections merged into Seats)
+- Keyboard shortcuts remapped: ⌘0=Settings, ⌘1-7 for other pages
+- Dashboard activity feed now uses real ActivityLog data with "View all →" link to Activity page
+- Global CSS enhanced with button press, hover glow, ripple, and smooth transition effects
+- Activity logging now covers: member create, payment, renewal, seat assign, settings update, WhatsApp send, data export
+
+---
+## Current Project Status
+
+### Description
+Library Management System - production-ready SPA with Next.js 16, Prisma/SQLite, emerald/teal theme.
+8 navigable pages: Dashboard, Members, Seats (with Floors/Sections tabs), Payments, WhatsApp, Reports, Activity, Settings.
+
+### Completed This Session
+1. **Activity Log System** — New ActivityLog model, API, helper utility, full page with timeline/filter/stats
+2. **Dashboard Activity Feed** — Upgraded to use real ActivityLog data with "View all" link
+3. **Member Profile Print Card** — Added "Print Card" button opening MemberCard dialog from profile
+4. **Seats Page Consolidation** — Merged Floors & Sections into Seats page as tabs
+5. **Global CSS Enhancements** — Button press, border glow, ripple, smooth transitions
+6. **Activity Logging Integration** — 7 API routes now log activities automatically
+
+### Unresolved / Next Phase Priorities
+1. **Seats tab "Add Floor" appears twice** — Minor UI duplication in Floors tab (header + empty space button)
+2. **Activity log does not track member delete/update, seat delete, floor/section CRUD** — Could add more logging endpoints
+3. **WhatsApp page recent messages still use mock data** — Could connect to ActivityLog for sent messages
+4. **Export payments route** missing activity logging (members export was added)
+5. **Settings restore** route missing activity logging
+6. **Print card button could also be in Members table** — Currently only in Member Profile Dialog

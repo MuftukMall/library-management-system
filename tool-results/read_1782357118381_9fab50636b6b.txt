@@ -1,0 +1,666 @@
+     1→'use client';
+     2→
+     3→import { useState } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { toast } from 'sonner';
+     6→import { motion } from 'framer-motion';
+     7→import { Card, CardContent } from '@/components/ui/card';
+     8→import { Button } from '@/components/ui/button';
+     9→import { Input } from '@/components/ui/input';
+    10→import { Label } from '@/components/ui/label';
+    11→import { Badge } from '@/components/ui/badge';
+    12→import { Skeleton } from '@/components/ui/skeleton';
+    13→import {
+    14→  Select,
+    15→  SelectContent,
+    16→  SelectItem,
+    17→  SelectTrigger,
+    18→  SelectValue,
+    19→} from '@/components/ui/select';
+    20→import {
+    21→  Dialog,
+    22→  DialogContent,
+    23→  DialogHeader,
+    24→  DialogTitle,
+    25→  DialogFooter,
+    26→} from '@/components/ui/dialog';
+    27→import {
+    28→  AlertDialog,
+    29→  AlertDialogAction,
+    30→  AlertDialogCancel,
+    31→  AlertDialogContent,
+    32→  AlertDialogDescription,
+    33→  AlertDialogFooter,
+    34→  AlertDialogHeader,
+    35→  AlertDialogTitle,
+    36→} from '@/components/ui/alert-dialog';
+    37→import {
+    38→  Table,
+    39→  TableBody,
+    40→  TableCell,
+    41→  TableHead,
+    42→  TableHeader,
+    43→  TableRow,
+    44→} from '@/components/ui/table';
+    45→import {
+    46→  Plus,
+    47→  Pencil,
+    48→  Trash2,
+    49→  Armchair,
+    50→  Map,
+    51→  List,
+    52→  UserPlus,
+    53→  UserMinus,
+    54→  Loader2,
+    55→  Search,
+    56→  Eye,
+    57→  Check,
+    58→  User as UserIcon,
+    59→} from 'lucide-react';
+    60→
+    61→interface Seat {
+    62→  id: string;
+    63→  seatNumber: string;
+    64→  floorId: string;
+    65→  floorName?: string;
+    66→  sectionId: string;
+    67→  sectionName?: string;
+    68→  status: 'available' | 'occupied';
+    69→  memberId?: string;
+    70→  memberName?: string;
+    71→}
+    72→
+    73→interface Floor { id: string; name: string; }
+    74→interface Section { id: string; name: string; floorId: string; }
+    75→
+    76→export function SeatsPage() {
+    77→  const queryClient = useQueryClient();
+    78→  const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+    79→  const [floorFilter, setFloorFilter] = useState<string>('all');
+    80→  const [sectionFilter, setSectionFilter] = useState<string>('all');
+    81→  const [statusFilter, setStatusFilter] = useState<string>('all');
+    82→
+    83→  // Dialogs
+    84→  const [addOpen, setAddOpen] = useState(false);
+    85→  const [editOpen, setEditOpen] = useState(false);
+    86→  const [deleteOpen, setDeleteOpen] = useState(false);
+    87→  const [assignOpen, setAssignOpen] = useState(false);
+    88→  const [unassignOpen, setUnassignOpen] = useState(false);
+    89→  const [viewOpen, setViewOpen] = useState(false);
+    90→  const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null);
+    91→
+    92→  // Form
+    93→  const [form, setForm] = useState({ seatNumber: '', floorId: '', sectionId: '' });
+    94→  const [memberSearch, setMemberSearch] = useState('');
+    95→  const [assignMemberId, setAssignMemberId] = useState('');
+    96→  const [loading, setLoading] = useState(false);
+    97→
+    98→  // Queries
+    99→  const { data: floors = [] } = useQuery<Floor[]>({
+   100→    queryKey: ['floors'],
+   101→    queryFn: () => fetch('/api/floors').then((r) => r.json()).then((d) => d.floors),
+   102→  });
+   103→
+   104→  const { data: sections = [] } = useQuery<Section[]>({
+   105→    queryKey: ['sections', floorFilter],
+   106→    queryFn: () => {
+   107→      const params = floorFilter !== 'all' ? `?floorId=${floorFilter}` : '';
+   108→      return fetch(`/api/sections${params}`).then((r) => r.json()).then((d) => d.sections);
+   109→    },
+   110→  });
+   111→
+   112→  const { data: formSections = [] } = useQuery<Section[]>({
+   113→    queryKey: ['form-sections', form.floorId],
+   114→    queryFn: () => fetch(`/api/sections?floorId=${form.floorId}`).then((r) => r.json()).then((d) => d.sections),
+   115→    enabled: !!form.floorId,
+   116→  });
+   117→
+   118→  const { data: seats = [], isLoading } = useQuery<Seat[]>({
+   119→    queryKey: ['seats', floorFilter, sectionFilter, statusFilter],
+   120→    queryFn: () => {
+   121→      const params = new URLSearchParams();
+   122→      if (floorFilter !== 'all') params.set('floorId', floorFilter);
+   123→      if (sectionFilter !== 'all') params.set('sectionId', sectionFilter);
+   124→      if (statusFilter !== 'all') params.set('status', statusFilter);
+   125→      const qs = params.toString();
+   126→      return fetch(`/api/seats${qs ? `?${qs}` : ''}`).then((r) => r.json()).then((d) => (d.seats || []).map((s: Record<string, unknown>) => ({ ...s, floorName: (s.floor as Record<string, unknown>)?.name, sectionName: (s.section as Record<string, unknown>)?.name, memberName: (s.member as Record<string, unknown>)?.name || null })));
+   127→    },
+   128→  });
+   129→
+   130→  const { data: searchResults = [] } = useQuery<{ id: string; name: string; phone: string }[]>({
+   131→    queryKey: ['member-search', memberSearch],
+   132→    queryFn: () => fetch(`/api/members?search=${memberSearch}&limit=10`).then((r) => r.json()).then((d) => d.members || d || []),
+   133→    enabled: memberSearch.length >= 2,
+   134→  });
+   135→
+   136→  const availableSections = viewMode === 'list' ? sections : formSections;
+   137→
+   138→  // Group seats by section for map view
+   139→  const seatsBySection = seats.reduce<Record<string, Seat[]>>((acc, seat) => {
+   140→    const key = seat.sectionId || 'unassigned';
+   141→    if (!acc[key]) acc[key] = [];
+   142→    acc[key].push(seat);
+   143→    return acc;
+   144→  }, {});
+   145→
+   146→  // Summary counts
+   147→  const totalSeats = seats.length;
+   148→  const occupiedSeats = seats.filter((s) => s.status === 'occupied').length;
+   149→  const availableSeatsCount = totalSeats - occupiedSeats;
+   150→
+   151→  // Mutations
+   152→  const addMutation = useMutation({
+   153→    mutationFn: async () => {
+   154→      setLoading(true);
+   155→      const res = await fetch('/api/seats', {
+   156→        method: 'POST', headers: { 'Content-Type': 'application/json' },
+   157→        body: JSON.stringify(form),
+   158→      });
+   159→      const data = await res.json();
+   160→      if (!res.ok) throw new Error(data.error || 'Failed to add seat');
+   161→      return data;
+   162→    },
+   163→    onSuccess: () => { toast.success('Seat added successfully'); setAddOpen(false); setForm({ seatNumber: '', floorId: '', sectionId: '' }); queryClient.invalidateQueries({ queryKey: ['seats'] }); },
+   164→    onError: (e) => toast.error(e.message),
+   165→    onSettled: () => setLoading(false),
+   166→  });
+   167→
+   168→  const editMutation = useMutation({
+   169→    mutationFn: async () => {
+   170→      setLoading(true);
+   171→      const res = await fetch(`/api/seats/${selectedSeat!.id}`, {
+   172→        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+   173→        body: JSON.stringify(form),
+   174→      });
+   175→      const data = await res.json();
+   176→      if (!res.ok) throw new Error(data.error || 'Failed to update seat');
+   177→      return data;
+   178→    },
+   179→    onSuccess: () => { toast.success('Seat updated'); setEditOpen(false); queryClient.invalidateQueries({ queryKey: ['seats'] }); },
+   180→    onError: (e) => toast.error(e.message),
+   181→    onSettled: () => setLoading(false),
+   182→  });
+   183→
+   184→  const deleteMutation = useMutation({
+   185→    mutationFn: async () => {
+   186→      const res = await fetch(`/api/seats/${selectedSeat!.id}`, { method: 'DELETE' });
+   187→      if (!res.ok) throw new Error('Failed to delete seat');
+   188→    },
+   189→    onSuccess: () => { toast.success('Seat deleted'); setDeleteOpen(false); queryClient.invalidateQueries({ queryKey: ['seats'] }); },
+   190→    onError: () => toast.error('Failed to delete seat'),
+   191→  });
+   192→
+   193→  const assignMutation = useMutation({
+   194→    mutationFn: async () => {
+   195→      setLoading(true);
+   196→      const res = await fetch(`/api/seats/${selectedSeat!.id}/assign`, {
+   197→        method: 'POST', headers: { 'Content-Type': 'application/json' },
+   198→        body: JSON.stringify({ memberId: assignMemberId }),
+   199→      });
+   200→      const data = await res.json();
+   201→      if (!res.ok) throw new Error(data.error || 'Failed to assign seat');
+   202→      return data;
+   203→    },
+   204→    onSuccess: () => { toast.success('Seat assigned'); setAssignOpen(false); setMemberSearch(''); setAssignMemberId(''); queryClient.invalidateQueries({ queryKey: ['seats'] }); },
+   205→    onError: (e) => toast.error(e.message),
+   206→    onSettled: () => setLoading(false),
+   207→  });
+   208→
+   209→  const unassignMutation = useMutation({
+   210→    mutationFn: async () => {
+   211→      const res = await fetch(`/api/seats/${selectedSeat!.id}/unassign`, { method: 'POST' });
+   212→      if (!res.ok) throw new Error('Failed to unassign seat');
+   213→    },
+   214→    onSuccess: () => { toast.success('Seat unassigned'); setUnassignOpen(false); queryClient.invalidateQueries({ queryKey: ['seats'] }); },
+   215→    onError: () => toast.error('Failed to unassign seat'),
+   216→  });
+   217→
+   218→  const openEdit = (seat: Seat) => {
+   219→    setSelectedSeat(seat);
+   220→    setForm({ seatNumber: seat.seatNumber, floorId: seat.floorId, sectionId: seat.sectionId });
+   221→    setEditOpen(true);
+   222→  };
+   223→
+   224→  return (
+   225→    <div className="space-y-4 page-enter">
+   226→      {/* Gradient header */}
+   227→      <div className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 p-4 md:p-5 text-white">
+   228→        <div className="flex items-center justify-between">
+   229→          <div>
+   230→            <h2 className="text-lg font-bold">Seats</h2>
+   231→            <p className="text-sm text-white/70 mt-0.5">Manage seat assignments and layout</p>
+   232→          </div>
+   233→          <div className="flex gap-2">
+   234→            <Button size="sm" onClick={() => { setForm({ seatNumber: '', floorId: '', sectionId: '' }); setAddOpen(true); }}
+   235→              className="bg-white/20 hover:bg-white/30 text-white border-0">
+   236→              <Plus className="h-4 w-4 mr-1" /> Add Seat
+   237→            </Button>
+   238→          </div>
+   239→        </div>
+   240→      </div>
+   241→
+   242→      {/* Summary bar */}
+   243→      {!isLoading && seats.length > 0 && (
+   244→        <div className="flex items-center gap-4 sm:gap-6 px-1 text-sm">
+   245→          <span className="flex items-center gap-2">
+   246→            <span className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40" />
+   247→            <span className="text-muted-foreground">{totalSeats} Total</span>
+   248→          </span>
+   249→          <span className="flex items-center gap-2">
+   250→            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+   251→            <span className="text-muted-foreground">{occupiedSeats} Occupied</span>
+   252→          </span>
+   253→          <span className="flex items-center gap-2">
+   254→            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+   255→            <span className="text-muted-foreground">{availableSeatsCount} Available</span>
+   256→          </span>
+   257→        </div>
+   258→      )}
+   259→
+   260→      {/* Filters & View Toggle */}
+   261→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+   262→        <div className="flex gap-2 flex-wrap">
+   263→          <Select value={floorFilter} onValueChange={(v) => { setFloorFilter(v); setSectionFilter('all'); }}>
+   264→            <SelectTrigger className="w-[130px]"><SelectValue placeholder="All Floors" /></SelectTrigger>
+   265→            <SelectContent>
+   266→              <SelectItem value="all">All Floors</SelectItem>
+   267→              {floors.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+   268→            </SelectContent>
+   269→          </Select>
+   270→          <Select value={sectionFilter} onValueChange={setSectionFilter}>
+   271→            <SelectTrigger className="w-[130px]"><SelectValue placeholder="All Sections" /></SelectTrigger>
+   272→            <SelectContent>
+   273→              <SelectItem value="all">All Sections</SelectItem>
+   274→              {availableSections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+   275→            </SelectContent>
+   276→          </Select>
+   277→          <Select value={statusFilter} onValueChange={setStatusFilter}>
+   278→            <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+   279→            <SelectContent>
+   280→              <SelectItem value="all">All Status</SelectItem>
+   281→              <SelectItem value="available">Available</SelectItem>
+   282→              <SelectItem value="occupied">Occupied</SelectItem>
+   283→            </SelectContent>
+   284→          </Select>
+   285→        </div>
+   286→
+   287→        {/* Segmented control toggle */}
+   288→        <div className="inline-flex items-center rounded-lg border bg-muted/50 p-0.5 gap-0.5">
+   289→          <button
+   290→            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+   291→              viewMode === 'map'
+   292→                ? 'bg-background text-foreground shadow-sm'
+   293→                : 'text-muted-foreground hover:text-foreground'
+   294→            }`}
+   295→            onClick={() => setViewMode('map')}
+   296→          >
+   297→            <Map className="w-3.5 h-3.5" />
+   298→            Map
+   299→          </button>
+   300→          <button
+   301→            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+   302→              viewMode === 'list'
+   303→                ? 'bg-background text-foreground shadow-sm'
+   304→                : 'text-muted-foreground hover:text-foreground'
+   305→            }`}
+   306→            onClick={() => setViewMode('list')}
+   307→          >
+   308→            <List className="w-3.5 h-3.5" />
+   309→            List
+   310→          </button>
+   311→        </div>
+   312→      </div>
+   313→
+   314→      {isLoading ? (
+   315→        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+   316→          {Array.from({ length: 20 }).map((_, i) => (
+   317→            <Skeleton key={i} className="h-20 rounded-lg" />
+   318→          ))}
+   319→        </div>
+   320→      ) : seats.length === 0 ? (
+   321→        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+   322→          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+   323→            <Armchair className="h-8 w-8 opacity-40" />
+   324→          </div>
+   325→          <p className="text-sm font-medium">No seats found</p>
+   326→          <p className="text-xs mt-1 text-muted-foreground/70">Adjust filters or add new seats to get started</p>
+   327→        </div>
+   328→      ) : viewMode === 'map' ? (
+   329→        /* Seat Map View */
+   330→        <div className="space-y-6">
+   331→          {Object.entries(seatsBySection).map(([sectionId, sectionSeats]) => (
+   332→            <div key={sectionId}>
+   333→              <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+   334→                <span className="w-2 h-2 rounded-full bg-primary" />
+   335→                {sectionSeats[0]?.sectionName || `Section ${sectionId}`}
+   336→                <Badge variant="secondary" className="text-[10px] font-normal px-1.5">
+   337→                  {sectionSeats.filter((s) => s.status === 'occupied').length}/{sectionSeats.length}
+   338→                </Badge>
+   339→              </h4>
+   340→              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+   341→                {sectionSeats.map((seat, index) => (
+   342→                  <motion.div
+   343→                    key={seat.id}
+   344→                    initial={{ opacity: 0, scale: 0.9 }}
+   345→                    animate={{ opacity: 1, scale: 1 }}
+   346→                    transition={{ duration: 0.2, delay: index * 0.02 }}
+   347→                  >
+   348→                    <Card
+   349→                      className={`cursor-pointer transition-all hover:scale-105 hover:shadow-lg animate-pulse-glow ${
+   350→                        seat.status === 'occupied'
+   351→                          ? 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border-amber-200/60 dark:border-amber-800/40'
+   352→                          : 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 border-emerald-200/60 dark:border-emerald-800/40'
+   353→                      }`}
+   354→                      onClick={() => { setSelectedSeat(seat); setViewOpen(true); }}
+   355→                    >
+   356→                      <CardContent className="p-2 text-center">
+   357→                        {seat.status === 'available' ? (
+   358→                          <div className="w-6 h-6 mx-auto mb-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+   359→                            <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+   360→                          </div>
+   361→                        ) : (
+   362→                          <div className="w-6 h-6 mx-auto mb-1 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+   363→                            <UserIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+   364→                          </div>
+   365→                        )}
+   366→                        <p className="text-xs font-medium">{seat.seatNumber}</p>
+   367→                        {seat.memberName && (
+   368→                          <p className="text-[10px] text-muted-foreground truncate mt-0.5">{seat.memberName}</p>
+   369→                        )}
+   370→                      </CardContent>
+   371→                    </Card>
+   372→                  </motion.div>
+   373→                ))}
+   374→              </div>
+   375→            </div>
+   376→          ))}
+   377→          <div className="flex items-center gap-6 text-xs text-muted-foreground">
+   378→            <span className="flex items-center gap-2">
+   379→              <span className="w-4 h-3 rounded bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/40 border border-emerald-200/60 dark:border-emerald-800/40" />
+   380→              Available
+   381→            </span>
+   382→            <span className="flex items-center gap-2">
+   383→              <span className="w-4 h-3 rounded bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/40 dark:to-orange-900/40 border border-amber-200/60 dark:border-amber-800/40" />
+   384→              Occupied
+   385→            </span>
+   386→          </div>
+   387→        </div>
+   388→      ) : (
+   389→        /* List View */
+   390→        <Card>
+   391→          <CardContent className="p-0">
+   392→            <div className="overflow-x-auto">
+   393→              <Table>
+   394→                <TableHeader>
+   395→                  <TableRow>
+   396→                    <TableHead>Seat No.</TableHead>
+   397→                    <TableHead className="hidden sm:table-cell">Floor</TableHead>
+   398→                    <TableHead className="hidden md:table-cell">Section</TableHead>
+   399→                    <TableHead>Status</TableHead>
+   400→                    <TableHead className="hidden sm:table-cell">Member</TableHead>
+   401→                    <TableHead className="text-right">Actions</TableHead>
+   402→                  </TableRow>
+   403→                </TableHeader>
+   404→                <TableBody>
+   405→                  {seats.map((seat, idx) => (
+   406→                    <TableRow key={seat.id} className={idx % 2 === 1 ? 'bg-muted/30' : ''}>
+   407→                      <TableCell className="font-medium">{seat.seatNumber}</TableCell>
+   408→                      <TableCell className="hidden sm:table-cell text-muted-foreground">{seat.floorName || '—'}</TableCell>
+   409→                      <TableCell className="hidden md:table-cell text-muted-foreground">{seat.sectionName || '—'}</TableCell>
+   410→                      <TableCell>
+   411→                        <Badge
+   412→                          variant={seat.status === 'available' ? 'default' : 'destructive'}
+   413→                          className={seat.status === 'available' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-0'}
+   414→                        >
+   415→                          {seat.status === 'available' ? 'Available' : 'Occupied'}
+   416→                        </Badge>
+   417→                      </TableCell>
+   418→                      <TableCell className="hidden sm:table-cell">{seat.memberName || '—'}</TableCell>
+   419→                      <TableCell className="text-right">
+   420→                        <div className="flex items-center justify-end gap-1">
+   421→                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(seat)}>
+   422→                            <Pencil className="h-3.5 w-3.5" />
+   423→                          </Button>
+   424→                          {seat.status === 'available' ? (
+   425→                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedSeat(seat); setMemberSearch(''); setAssignMemberId(''); setAssignOpen(true); }}>
+   426→                              <UserPlus className="h-3.5 w-3.5" />
+   427→                            </Button>
+   428→                          ) : (
+   429→                            <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-500" onClick={() => { setSelectedSeat(seat); setUnassignOpen(true); }}>
+   430→                              <UserMinus className="h-3.5 w-3.5" />
+   431→                            </Button>
+   432→                          )}
+   433→                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelectedSeat(seat); setDeleteOpen(true); }}>
+   434→                            <Trash2 className="h-3.5 w-3.5" />
+   435→                          </Button>
+   436→                        </div>
+   437→                      </TableCell>
+   438→                    </TableRow>
+   439→                  ))}
+   440→                </TableBody>
+   441→              </Table>
+   442→            </div>
+   443→          </CardContent>
+   444→        </Card>
+   445→      )}
+   446→
+   447→      {/* Add Seat Dialog */}
+   448→      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+   449→        <DialogContent className="max-w-sm">
+   450→          <DialogHeader>
+   451→            <DialogTitle>Add Seat</DialogTitle>
+   452→          </DialogHeader>
+   453→          <div className="grid gap-4 py-2">
+   454→            <div className="space-y-2">
+   455→              <Label>Seat Number *</Label>
+   456→              <Input
+   457→                placeholder="e.g., A1"
+   458→                value={form.seatNumber}
+   459→                onChange={(e) => setForm((p) => ({ ...p, seatNumber: e.target.value }))}
+   460→              />
+   461→            </div>
+   462→            <div className="space-y-2">
+   463→              <Label>Floor *</Label>
+   464→              <Select value={form.floorId} onValueChange={(v) => setForm((p) => ({ ...p, floorId: v, sectionId: '' }))}>
+   465→                <SelectTrigger><SelectValue placeholder="Select floor" /></SelectTrigger>
+   466→                <SelectContent>
+   467→                  {floors.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+   468→                </SelectContent>
+   469→              </Select>
+   470→            </div>
+   471→            <div className="space-y-2">
+   472→              <Label>Section *</Label>
+   473→              <Select value={form.sectionId} onValueChange={(v) => setForm((p) => ({ ...p, sectionId: v }))} disabled={!form.floorId}>
+   474→                <SelectTrigger><SelectValue placeholder="Select section" /></SelectTrigger>
+   475→                <SelectContent>
+   476→                  {formSections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+   477→                </SelectContent>
+   478→              </Select>
+   479→            </div>
+   480→          </div>
+   481→          <DialogFooter>
+   482→            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+   483→            <Button onClick={() => addMutation.mutate()} disabled={loading || !form.seatNumber || !form.floorId || !form.sectionId}>
+   484→              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+   485→              Add Seat
+   486→            </Button>
+   487→          </DialogFooter>
+   488→        </DialogContent>
+   489→      </Dialog>
+   490→
+   491→      {/* Edit Seat Dialog */}
+   492→      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+   493→        <DialogContent className="max-w-sm">
+   494→          <DialogHeader>
+   495→            <DialogTitle>Edit Seat</DialogTitle>
+   496→          </DialogHeader>
+   497→          <div className="grid gap-4 py-2">
+   498→            <div className="space-y-2">
+   499→              <Label>Seat Number</Label>
+   500→              <Input value={form.seatNumber} onChange={(e) => setForm((p) => ({ ...p, seatNumber: e.target.value }))} />
+   501→            </div>
+   502→            <div className="space-y-2">
+   503→              <Label>Floor</Label>
+   504→              <Select value={form.floorId} onValueChange={(v) => setForm((p) => ({ ...p, floorId: v, sectionId: '' }))}>
+   505→                <SelectTrigger><SelectValue /></SelectTrigger>
+   506→                <SelectContent>
+   507→                  {floors.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+   508→                </SelectContent>
+   509→              </Select>
+   510→            </div>
+   511→            <div className="space-y-2">
+   512→              <Label>Section</Label>
+   513→              <Select value={form.sectionId} onValueChange={(v) => setForm((p) => ({ ...p, sectionId: v }))} disabled={!form.floorId}>
+   514→                <SelectTrigger><SelectValue /></SelectTrigger>
+   515→                <SelectContent>
+   516→                  {formSections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+   517→                </SelectContent>
+   518→              </Select>
+   519→            </div>
+   520→          </div>
+   521→          <DialogFooter>
+   522→            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+   523→            <Button onClick={() => editMutation.mutate()} disabled={loading}>
+   524→              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+   525→              Save Changes
+   526→            </Button>
+   527→          </DialogFooter>
+   528→        </DialogContent>
+   529→      </Dialog>
+   530→
+   531→      {/* View Seat Dialog */}
+   532→      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+   533→        <DialogContent className="max-w-sm">
+   534→          <DialogHeader>
+   535→            <DialogTitle>Seat Details</DialogTitle>
+   536→          </DialogHeader>
+   537→          {selectedSeat && (
+   538→            <div className="grid gap-3 py-2 text-sm">
+   539→              <div className="flex justify-between">
+   540→                <span className="text-muted-foreground">Seat Number</span>
+   541→                <span className="font-medium">{selectedSeat.seatNumber}</span>
+   542→              </div>
+   543→              <div className="flex justify-between">
+   544→                <span className="text-muted-foreground">Floor</span>
+   545→                <span className="font-medium">{selectedSeat.floorName || '—'}</span>
+   546→              </div>
+   547→              <div className="flex justify-between">
+   548→                <span className="text-muted-foreground">Section</span>
+   549→                <span className="font-medium">{selectedSeat.sectionName || '—'}</span>
+   550→              </div>
+   551→              <div className="flex justify-between items-center">
+   552→                <span className="text-muted-foreground">Status</span>
+   553→                <Badge
+   554→                  variant={selectedSeat.status === 'available' ? 'default' : 'destructive'}
+   555→                  className={selectedSeat.status === 'available' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-0'}
+   556→                >
+   557→                  {selectedSeat.status === 'available' ? 'Available' : 'Occupied'}
+   558→                </Badge>
+   559→              </div>
+   560→              <div className="flex justify-between">
+   561→                <span className="text-muted-foreground">Assigned Member</span>
+   562→                <span className="font-medium">{selectedSeat.memberName || '—'}</span>
+   563→              </div>
+   564→            </div>
+   565→          )}
+   566→          <DialogFooter>
+   567→            <Button variant="outline" onClick={() => setViewOpen(false)}>Close</Button>
+   568→            {selectedSeat?.status === 'available' && (
+   569→              <Button onClick={() => { setViewOpen(false); setMemberSearch(''); setAssignMemberId(''); setAssignOpen(true); }}>
+   570→                <UserPlus className="h-4 w-4 mr-1" /> Assign
+   571→              </Button>
+   572→            )}
+   573→            {selectedSeat?.status === 'occupied' && (
+   574→              <Button variant="destructive" onClick={() => { setViewOpen(false); setUnassignOpen(true); }}>
+   575→                <UserMinus className="h-4 w-4 mr-1" /> Unassign
+   576→              </Button>
+   577→            )}
+   578→          </DialogFooter>
+   579→        </DialogContent>
+   580→      </Dialog>
+   581→
+   582→      {/* Assign Member Dialog */}
+   583→      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+   584→        <DialogContent className="max-w-sm">
+   585→          <DialogHeader>
+   586→            <DialogTitle>Assign Member to Seat {selectedSeat?.seatNumber}</DialogTitle>
+   587→          </DialogHeader>
+   588→          <div className="space-y-3 py-2">
+   589→            <div className="relative">
+   590→              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   591→              <Input
+   592→                placeholder="Search members by name..."
+   593→                value={memberSearch}
+   594→                onChange={(e) => setMemberSearch(e.target.value)}
+   595→                className="pl-9"
+   596→              />
+   597→            </div>
+   598→            {memberSearch.length >= 2 && (
+   599→              <div className="max-h-48 overflow-y-auto border rounded-lg custom-scrollbar">
+   600→                {searchResults.length === 0 ? (
+   601→                  <p className="text-sm text-muted-foreground p-3 text-center">No members found</p>
+   602→                ) : (
+   603→                  searchResults.map((m) => (
+   604→                    <button
+   605→                      key={m.id}
+   606→                      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center justify-between ${
+   607→                        assignMemberId === m.id ? 'bg-accent' : ''
+   608→                      }`}
+   609→                      onClick={() => setAssignMemberId(m.id)}
+   610→                    >
+   611→                      <span>{m.name}</span>
+   612→                      <span className="text-xs text-muted-foreground">{m.phone}</span>
+   613→                    </button>
+   614→                  ))
+   615→                )}
+   616→              </div>
+   617→            )}
+   618→          </div>
+   619→          <DialogFooter>
+   620→            <Button variant="outline" onClick={() => setAssignOpen(false)}>Cancel</Button>
+   621→            <Button onClick={() => assignMutation.mutate()} disabled={loading || !assignMemberId}>
+   622→              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+   623→              Assign
+   624→            </Button>
+   625→          </DialogFooter>
+   626→        </DialogContent>
+   627→      </Dialog>
+   628→
+   629→      {/* Unassign Confirmation */}
+   630→      <AlertDialog open={unassignOpen} onOpenChange={setUnassignOpen}>
+   631→        <AlertDialogContent>
+   632→          <AlertDialogHeader>
+   633→            <AlertDialogTitle>Unassign Seat</AlertDialogTitle>
+   634→            <AlertDialogDescription>
+   635→              Are you sure you want to unassign seat {selectedSeat?.seatNumber} from {selectedSeat?.memberName}?
+   636→            </AlertDialogDescription>
+   637→          </AlertDialogHeader>
+   638→          <AlertDialogFooter>
+   639→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   640→            <AlertDialogAction onClick={() => unassignMutation.mutate()} className="bg-destructive text-white hover:bg-destructive/90">
+   641→              Unassign
+   642→            </AlertDialogAction>
+   643→          </AlertDialogFooter>
+   644→        </AlertDialogContent>
+   645→      </AlertDialog>
+   646→
+   647→      {/* Delete Confirmation */}
+   648→      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+   649→        <AlertDialogContent>
+   650→          <AlertDialogHeader>
+   651→            <AlertDialogTitle>Delete Seat</AlertDialogTitle>
+   652→            <AlertDialogDescription>
+   653→              Are you sure you want to delete seat {selectedSeat?.seatNumber}? This action cannot be undone.
+   654→            </AlertDialogDescription>
+   655→          </AlertDialogHeader>
+   656→          <AlertDialogFooter>
+   657→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   658→            <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-white hover:bg-destructive/90">
+   659→              Delete
+   660→            </AlertDialogAction>
+   661→          </AlertDialogFooter>
+   662→        </AlertDialogContent>
+   663→      </AlertDialog>
+   664→    </div>
+   665→  );
+   666→}

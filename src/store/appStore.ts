@@ -4,8 +4,6 @@ export type Page =
   | "dashboard"
   | "members"
   | "seats"
-  | "floors"
-  | "sections"
   | "payments"
   | "settings"
   | "whatsapp"

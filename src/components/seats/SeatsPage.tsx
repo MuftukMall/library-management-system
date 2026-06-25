@@ -43,6 +43,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
   Plus,
   Pencil,
   Trash2,
@@ -56,7 +62,12 @@ import {
   Eye,
   Check,
   User as UserIcon,
+  Building2,
+  Layers,
+  Users,
 } from 'lucide-react';
+
+// ── Shared types ──────────────────────────────────────────────────────
 
 interface Seat {
   id: string;
@@ -70,10 +81,73 @@ interface Seat {
   memberName?: string;
 }
 
-interface Floor { id: string; name: string; }
-interface Section { id: string; name: string; floorId: string; }
+interface Floor {
+  id: string;
+  name: string;
+  sectionCount?: number;
+  seatCount?: number;
+}
+
+interface Section {
+  id: string;
+  name: string;
+  floorId: string;
+  floorName?: string;
+  seatCount?: number;
+  memberCount?: number;
+}
+
+// ── Main Component ────────────────────────────────────────────────────
 
 export function SeatsPage() {
+  return (
+    <div className="space-y-4 page-enter">
+      {/* Gradient header */}
+      <div className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 p-4 md:p-5 text-white">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+            <Armchair className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold">Seats</h2>
+            <p className="text-sm text-white/70 mt-0.5">Manage seats, floors & sections</p>
+          </div>
+        </div>
+      </div>
+
+      <Tabs defaultValue="seats" className="w-full">
+        <TabsList className="w-full grid grid-cols-3">
+          <TabsTrigger value="seats" className="gap-1.5 text-xs sm:text-sm">
+            <Armchair className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Seats</span>
+          </TabsTrigger>
+          <TabsTrigger value="floors" className="gap-1.5 text-xs sm:text-sm">
+            <Building2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Floors</span>
+          </TabsTrigger>
+          <TabsTrigger value="sections" className="gap-1.5 text-xs sm:text-sm">
+            <Layers className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Sections</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="seats" className="mt-4">
+          <SeatsTab />
+        </TabsContent>
+        <TabsContent value="floors" className="mt-4">
+          <FloorsTab />
+        </TabsContent>
+        <TabsContent value="sections" className="mt-4">
+          <SectionsTab />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// ── Seats Tab ─────────────────────────────────────────────────────────
+
+function SeatsTab() {
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [floorFilter, setFloorFilter] = useState<string>('all');
@@ -222,13 +296,13 @@ export function SeatsPage() {
   };
 
   return (
-    <div className="space-y-4 page-enter">
-      {/* Gradient header */}
-      <div className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 p-4 md:p-5 text-white">
+    <div className="space-y-4">
+      {/* Tab gradient header */}
+      <div className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 p-3 md:p-4 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold">Seats</h2>
-            <p className="text-sm text-white/70 mt-0.5">Manage seat assignments and layout</p>
+            <h2 className="text-lg font-bold">Seat Management</h2>
+            <p className="text-sm text-white/70">Manage seat assignments and layout</p>
           </div>
           <div className="flex gap-2">
             <Button size="sm" onClick={() => { setForm({ seatNumber: '', floorId: '', sectionId: '' }); setAddOpen(true); }}
@@ -651,6 +725,509 @@ export function SeatsPage() {
             <AlertDialogTitle>Delete Seat</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete seat {selectedSeat?.seatNumber}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-white hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// ── Floors Tab ─────────────────────────────────────────────────────────
+
+function FloorsTab() {
+  const queryClient = useQueryClient();
+  const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [selectedFloor, setSelectedFloor] = useState<Floor | null>(null);
+  const [floorName, setFloorName] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const { data: floors = [], isLoading } = useQuery<Floor[]>({
+    queryKey: ['floors'],
+    queryFn: () => fetch('/api/floors').then((r) => r.json()).then((d) => (d.floors || []).map((f: Record<string, unknown>) => ({ ...f, sectionCount: (f._count as Record<string, unknown>)?.sections || 0, seatCount: (f._count as Record<string, unknown>)?.seats || 0 }))),
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      setLoading(true);
+      const res = await fetch('/api/floors', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: floorName }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add floor');
+      return data;
+    },
+    onSuccess: () => { toast.success('Floor added successfully'); setAddOpen(false); setFloorName(''); queryClient.invalidateQueries({ queryKey: ['floors'] }); },
+    onError: (e) => toast.error(e.message),
+    onSettled: () => setLoading(false),
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      setLoading(true);
+      const res = await fetch(`/api/floors/${selectedFloor!.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: floorName }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update floor');
+      return data;
+    },
+    onSuccess: () => { toast.success('Floor updated successfully'); setEditOpen(false); setFloorName(''); queryClient.invalidateQueries({ queryKey: ['floors'] }); },
+    onError: (e) => toast.error(e.message),
+    onSettled: () => setLoading(false),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/floors/${selectedFloor!.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete floor');
+      }
+    },
+    onSuccess: () => { toast.success('Floor deleted successfully'); setDeleteOpen(false); queryClient.invalidateQueries({ queryKey: ['floors'] }); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const openEdit = (floor: Floor) => {
+    setSelectedFloor(floor);
+    setFloorName(floor.name);
+    setEditOpen(true);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Tab gradient header */}
+      <div className="rounded-xl bg-gradient-to-r from-emerald-700 to-teal-600 p-3 md:p-4 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Floors</h2>
+              <p className="text-sm text-white/70">Manage your library floors</p>
+            </div>
+          </div>
+          {floors.length > 0 && (
+            <Button size="sm" onClick={() => { setFloorName(''); setAddOpen(true); }}
+              className="bg-white/20 hover:bg-white/30 text-white border-0">
+              <Plus className="h-4 w-4 mr-1" /> Add Floor
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {floors.length > 0 && !isLoading && (
+        <Button size="sm" onClick={() => { setFloorName(''); setAddOpen(true); }}>
+          <Plus className="h-4 w-4 mr-1" /> Add Floor
+        </Button>
+      )}
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-36 rounded-xl" />
+          ))}
+        </div>
+      ) : floors.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+            <Building2 className="h-8 w-8 opacity-40" />
+          </div>
+          <p className="text-sm font-medium">No floors yet</p>
+          <p className="text-xs mt-1 text-muted-foreground/70">Add your first floor to get started</p>
+          <Button size="sm" className="mt-4" onClick={() => { setFloorName(''); setAddOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Add Your First Floor
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {floors.map((floor, index) => (
+            <motion.div
+              key={floor.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+            >
+              <Card className="hover-card-lift hover:scale-[1.02] group border-l-4 border-l-emerald-500">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium">{floor.name}</h4>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Layers className="w-3 h-3" />
+                            {floor.sectionCount || 0} sections
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Armchair className="w-3 h-3" />
+                            {floor.seatCount || 0} seats
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(floor)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelectedFloor(floor); setDeleteOpen(true); }}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Floor Dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add Floor</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Floor Name</Label>
+            <Input
+              placeholder="e.g., Ground Floor"
+              value={floorName}
+              onChange={(e) => setFloorName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && floorName && addMutation.mutate()}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+            <Button onClick={() => addMutation.mutate()} disabled={loading || !floorName}>
+              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Add Floor
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Floor Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit Floor</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Floor Name</Label>
+            <Input
+              value={floorName}
+              onChange={(e) => setFloorName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && floorName && editMutation.mutate()}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={() => editMutation.mutate()} disabled={loading || !floorName}>
+              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Floor</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{selectedFloor?.name}&quot;? This will also delete all sections and seats in this floor.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-white hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// ── Sections Tab ───────────────────────────────────────────────────────
+
+function SectionsTab() {
+  const queryClient = useQueryClient();
+  const [floorFilter, setFloorFilter] = useState<string>('all');
+  const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [selectedSection, setSelectedSection] = useState<Section | null>(null);
+  const [form, setForm] = useState({ name: '', floorId: '' });
+  const [loading, setLoading] = useState(false);
+
+  const { data: floors = [] } = useQuery<Floor[]>({
+    queryKey: ['floors'],
+    queryFn: () => fetch('/api/floors').then((r) => r.json()).then((d) => d.floors),
+  });
+
+  const { data: sections = [], isLoading } = useQuery<Section[]>({
+    queryKey: ['sections', floorFilter],
+    queryFn: () => {
+      const params = floorFilter !== 'all' ? `?floorId=${floorFilter}` : '';
+      return fetch(`/api/sections${params}`).then((r) => r.json()).then((d) => (d.sections || []).map((s: Record<string, unknown>) => ({ ...s, floorName: (s.floor as Record<string, unknown>)?.name, seatCount: (s._count as Record<string, unknown>)?.seats || 0, memberCount: (s._count as Record<string, unknown>)?.members || 0 })));
+    },
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      setLoading(true);
+      const res = await fetch('/api/sections', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add section');
+      return data;
+    },
+    onSuccess: () => { toast.success('Section added successfully'); setAddOpen(false); setForm({ name: '', floorId: '' }); queryClient.invalidateQueries({ queryKey: ['sections'] }); },
+    onError: (e) => toast.error(e.message),
+    onSettled: () => setLoading(false),
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      setLoading(true);
+      const res = await fetch(`/api/sections/${selectedSection!.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update section');
+      return data;
+    },
+    onSuccess: () => { toast.success('Section updated successfully'); setEditOpen(false); queryClient.invalidateQueries({ queryKey: ['sections'] }); },
+    onError: (e) => toast.error(e.message),
+    onSettled: () => setLoading(false),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/sections/${selectedSection!.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete section');
+      }
+    },
+    onSuccess: () => { toast.success('Section deleted successfully'); setDeleteOpen(false); queryClient.invalidateQueries({ queryKey: ['sections'] }); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const openEdit = (section: Section) => {
+    setSelectedSection(section);
+    setForm({ name: section.name, floorId: section.floorId });
+    setEditOpen(true);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Tab gradient header */}
+      <div className="rounded-xl bg-gradient-to-r from-teal-700 to-emerald-600 p-3 md:p-4 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Sections</h2>
+              <p className="text-sm text-white/70">Manage library sections by floor</p>
+            </div>
+          </div>
+          {sections.length > 0 && !isLoading && (
+            <Button size="sm" onClick={() => { setForm({ name: '', floorId: '' }); setAddOpen(true); }}
+              className="bg-white/20 hover:bg-white/30 text-white border-0">
+              <Plus className="h-4 w-4 mr-1" /> Add Section
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-2 flex-wrap items-center">
+        <Select value={floorFilter} onValueChange={setFloorFilter}>
+          <SelectTrigger className="w-[150px]"><SelectValue placeholder="All Floors" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Floors</SelectItem>
+            {floors.map((f) => (
+              <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {sections.length > 0 && !isLoading && (
+          <Button size="sm" onClick={() => { setForm({ name: '', floorId: '' }); setAddOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Add Section
+          </Button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-36 rounded-xl" />
+          ))}
+        </div>
+      ) : sections.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+            <Layers className="h-8 w-8 opacity-40" />
+          </div>
+          <p className="text-sm font-medium">No sections found</p>
+          <p className="text-xs mt-1 text-muted-foreground/70">Add a section to get started</p>
+          <Button size="sm" className="mt-4" onClick={() => { setForm({ name: '', floorId: '' }); setAddOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Add Your First Section
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {sections.map((section, index) => (
+            <motion.div
+              key={section.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+            >
+              <Card className="hover-card-lift hover:scale-[1.02] group border-l-4 border-l-teal-500">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400">
+                        <Layers className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium">{section.name}</h4>
+                        <p className="text-xs text-muted-foreground">{section.floorName || ''}</p>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Armchair className="w-3 h-3" />
+                            {section.seatCount || 0} seats
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            {section.memberCount || 0} members
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(section)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelectedSection(section); setDeleteOpen(true); }}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Section Dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add Section</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="space-y-2">
+              <Label>Floor *</Label>
+              <Select value={form.floorId} onValueChange={(v) => setForm((p) => ({ ...p, floorId: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select floor" /></SelectTrigger>
+                <SelectContent>
+                  {floors.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Section Name *</Label>
+              <Input
+                placeholder="e.g., Reading Area"
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                onKeyDown={(e) => e.key === 'Enter' && form.name && form.floorId && addMutation.mutate()}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+            <Button onClick={() => addMutation.mutate()} disabled={loading || !form.name || !form.floorId}>
+              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Add Section
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Section Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit Section</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="space-y-2">
+              <Label>Floor</Label>
+              <Select value={form.floorId} onValueChange={(v) => setForm((p) => ({ ...p, floorId: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {floors.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Section Name</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={() => editMutation.mutate()} disabled={loading || !form.name}>
+              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Section</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{selectedSection?.name}&quot;? This will also delete all seats in this section.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -41,8 +41,6 @@ import {
   LayoutDashboard,
   Users,
   Armchair,
-  Building2,
-  Layers,
   CreditCard,
   MessageCircle,
   Settings,
@@ -60,8 +58,6 @@ const navItems: { page: Page; label: string; icon: React.ElementType }[] = [
   { page: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { page: 'members', label: 'Members', icon: Users },
   { page: 'seats', label: 'Seats', icon: Armchair },
-  { page: 'floors', label: 'Floors', icon: Building2 },
-  { page: 'sections', label: 'Sections', icon: Layers },
   { page: 'payments', label: 'Payments', icon: CreditCard },
   { page: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
   { page: 'reports', label: 'Reports', icon: BarChart3 },
@@ -97,9 +93,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Global keyboard shortcuts: Cmd/Ctrl+1-9 for page nav, Cmd/Ctrl+D for dark mode
   const pageByNum = useCallback((num: number): Page | null => {
-    const pages: Page[] = ['dashboard', 'members', 'seats', 'floors', 'sections', 'payments', 'whatsapp', 'reports', 'activity', 'settings'];
-    // 0 maps to the last page (Settings), 1-9 maps to first 9
-    const index = num === 0 ? 9 : num - 1;
+    const pages: Page[] = ['dashboard', 'members', 'seats', 'payments', 'whatsapp', 'reports', 'activity', 'settings'];
+    // 0 maps to the last page (Settings), 1-7 maps to first 7
+    const index = num === 0 ? 7 : num - 1;
     return pages[index] || null;
   }, []);
 
@@ -111,7 +107,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return;
 
       const num = parseInt(e.key);
-      if (num >= 0 && num <= 9) {
+      if (num >= 0 && num <= 7) {
         e.preventDefault();
         const page = pageByNum(num);
         if (page) setCurrentPage(page);

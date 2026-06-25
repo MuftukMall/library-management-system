@@ -7,8 +7,6 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { DashboardPage } from '@/components/dashboard/DashboardPage';
 import { MembersPage } from '@/components/members/MembersPage';
 import { SeatsPage } from '@/components/seats/SeatsPage';
-import { FloorsPage } from '@/components/floors/FloorsPage';
-import { SectionsPage } from '@/components/sections/SectionsPage';
 import { PaymentsPage } from '@/components/payments/PaymentsPage';
 import { SettingsPage } from '@/components/settings/SettingsPage';
 import { WhatsAppPage } from '@/components/whatsapp/WhatsAppPage';
@@ -39,10 +37,6 @@ export default function Home() {
         return <MembersPage />;
       case 'seats':
         return <SeatsPage />;
-      case 'floors':
-        return <FloorsPage />;
-      case 'sections':
-        return <SectionsPage />;
       case 'payments':
         return <PaymentsPage />;
       case 'settings':
