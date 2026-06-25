@@ -559,7 +559,9 @@ Library Management System - production-ready SPA with Next.js 16, Prisma/SQLite,
 1. **Seat Deletion Feature** — Full delete from map view (hover trash icon), list view (table action), and seat detail dialog
 2. **Auto-Unassign on Delete** — Occupied seats auto-unassign member before deletion, with contextual confirmation dialog
 3. **Activity Logging for Seat Delete** — Seat deletions logged with metadata about auto-unassign
-4. **Previous Session** — Activity Log System, Dashboard Activity Feed, Member Profile Print Card, Seats Page Consolidation, Global CSS Enhancements
+4. **BUG FIX: Member View Dialog Empty Data** — The `/api/members/[id]` API returns `{member:{...}, payments:[...]}` but the query spread the whole response instead of extracting `member`. Fixed by destructuring `m.member` before spreading.
+5. **BUG FIX: Member View Dialog Status Badge** — "Expiring" status members showed "Expired" (red badge). Added 3-way status handling: Active (green), Expiring (amber), Expired (red).
+6. **Full QA Pass** — Tested all 8 pages via agent-browser. No console errors, no 500s. All tabs, dialogs, filters, CRUD operations verified.
 
 ### Unresolved / Next Phase Priorities
 1. **Activity log does not track member delete/update, floor/section CRUD** — Could add more logging endpoints

@@ -176,7 +176,16 @@ export function MembersPage() {
 
   const { data: viewMember, isLoading: viewLoading } = useQuery({
     queryKey: ['member', selectedMember?.id],
-    queryFn: () => fetch(`/api/members/${selectedMember!.id}`).then((r) => r.json()).then((m: Record<string, unknown>) => ({ ...m, seatNumber: (m.seat as Record<string, unknown>)?.seatNumber, floorName: (m.floor as Record<string, unknown>)?.name, sectionName: (m.section as Record<string, unknown>)?.name })),
+    queryFn: () => fetch(`/api/members/${selectedMember!.id}`).then((r) => r.json()).then((m: Record<string, unknown>) => {
+      const member = (m.member || {}) as Record<string, unknown>;
+      return {
+        ...member,
+        seatNumber: (member.seat as Record<string, unknown>)?.seatNumber,
+        floorName: (member.floor as Record<string, unknown>)?.name,
+        sectionName: (member.section as Record<string, unknown>)?.name,
+        payments: m.payments,
+      };
+    }),
     enabled: !!selectedMember?.id && viewOpen,
   });
 
@@ -631,9 +640,17 @@ export function MembersPage() {
                   <div><span className="text-muted-foreground">Fee:</span><p className="font-medium">₹{viewMember.fee}</p></div>
                   <div><span className="text-muted-foreground">Status:</span>
                     <p>
-                      <Badge variant={viewMember.status === 'active' ? 'default' : 'destructive'}
-                        className={viewMember.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 border-0'}>
-                        {viewMember.status === 'active' ? 'Active' : 'Expired'}
+                      <Badge
+                        variant={viewMember.status === 'active' ? 'default' : 'destructive'}
+                        className={
+                          viewMember.status === 'active'
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0'
+                            : viewMember.status === 'expiring'
+                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-0'
+                              : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 border-0'
+                        }
+                      >
+                        {viewMember.status === 'active' ? 'Active' : viewMember.status === 'expiring' ? 'Expiring' : 'Expired'}
                       </Badge>
                     </p>
                   </div>
