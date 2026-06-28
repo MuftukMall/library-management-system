@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+*.md
+.env*
+db/
+mini-services/
+.zscripts/
+tool-results/
+skills/
+*.log
+Dockerfile
+.gitignore
