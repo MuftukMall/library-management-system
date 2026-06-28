@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { logActivity } from "@/lib/activityLog";
 
-// POST /api/whatsapp/send - Send WhatsApp message (mock)
+const WA_SERVICE = "3005";
+
+// POST /api/whatsapp/send - Send WhatsApp message
 export async function POST(request: NextRequest) {
   try {
     await requireAuth();
@@ -13,15 +15,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "phone and message are required" }, { status: 400 });
     }
 
-    logActivity("whatsapp_sent", `WhatsApp message sent to ${phone}`, message.slice(0, 100));
+    // Proxy to WhatsApp service
+    try {
+      const res = await fetch(`/?XTransformPort=${WA_SERVICE}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, message }),
+      });
+      const data = await res.json();
 
-    // Mock response
-    return NextResponse.json({
-      success: true,
-      message: "Message sent successfully (mock)",
-      phone,
-      timestamp: new Date().toISOString(),
-    });
+      if (!res.ok) {
+        return NextResponse.json({ error: data.error || "Failed to send message" }, { status: res.status });
+      }
+
+      logActivity("whatsapp_sent", `WhatsApp message sent to ${phone}`, message.slice(0, 100));
+
+      return NextResponse.json(data);
+    } catch {
+      return NextResponse.json({ error: "WhatsApp service is not running. Please start the WhatsApp service and connect first." }, { status: 503 });
+    }
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

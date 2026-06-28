@@ -52,3 +52,22 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Database
+/db/*.db
+/db/*.db-journal
+
+# WhatsApp auth sessions (sensitive)
+mini-services/whatsapp-service/auth/
+
+# Mini-services node_modules
+mini-services/**/node_modules/
+
+# Z scripts
+.zscripts/
+
+# Tool results
+/tool-results/
+
+# Generated icons (keep them but ignore raw intermediates)
+public/icon-512.png

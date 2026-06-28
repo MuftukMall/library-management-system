@@ -1,0 +1,15 @@
+{
+  "name": "whatsapp-service",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.8",
+    "qrcode": "^1.5.4",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "pino": "^9.5.0"
+  }
+}
