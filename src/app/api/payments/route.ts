@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/payments - Create payment
+// POST /api/payments - Create payment (auto-detects start date, auto-calculates validTill)
 export async function POST(request: NextRequest) {
   try {
     await requireAuth();
@@ -75,35 +75,70 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { memberId, amount, paymentDate, validTill, status } = body;
 
-    if (!memberId || !amount || !paymentDate || !validTill) {
+    if (!memberId || !amount) {
       return NextResponse.json(
-        { error: "memberId, amount, paymentDate, and validTill are required" },
+        { error: "memberId and amount are required" },
         { status: 400 }
       );
     }
 
-    const member = await db.member.findUnique({ where: { id: memberId } });
+    // Fetch member with latest payment for auto-date detection
+    const member = await db.member.findUnique({
+      where: { id: memberId },
+      include: {
+        payments: {
+          orderBy: { validTill: "desc" },
+          take: 1,
+          select: { validTill: true },
+        },
+      },
+    });
     if (!member) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
+    // Auto-detect start date: use last payment's validTill, fallback to paymentDate, then today
+    const lastValidTill = member.payments[0]?.validTill;
+    const startDate = paymentDate
+      ? new Date(paymentDate)
+      : lastValidTill
+        ? new Date(lastValidTill)
+        : new Date();
+
+    // Auto-calculate validTill: start date + 30 days if not provided
+    const validTillObj = validTill
+      ? new Date(validTill)
+      : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+
     const receiptNo = `RCP-${Date.now()}`;
 
-    const payment = await db.payment.create({
-      data: {
-        memberId,
-        amount: parseFloat(amount),
-        paymentDate: new Date(paymentDate),
-        validTill: new Date(validTill),
-        receiptNo,
-        status: status || "paid",
-      },
-      include: {
-        member: { select: { id: true, name: true, phone: true } },
-      },
-    });
+    // Create payment and update member in transaction
+    const [payment] = await db.$transaction([
+      db.payment.create({
+        data: {
+          memberId,
+          amount: parseFloat(amount),
+          paymentDate: startDate,
+          validTill: validTillObj,
+          receiptNo,
+          status: status || "paid",
+        },
+      }),
+      db.member.update({
+        where: { id: memberId },
+        data: {
+          expiryDate: validTillObj,
+          status: "active",
+        },
+      }),
+    ]);
 
-    logActivity("payment_created", `Payment of ₹${payment.amount} received from ${member.name}`, `Receipt: ${receiptNo}`, { paymentId: payment.id, memberId });
+    logActivity(
+      "payment_created",
+      `Payment of ₹${payment.amount} received from ${member.name}`,
+      `Receipt: ${receiptNo}, Period: ${startDate.toISOString().split('T')[0]} → ${validTillObj.toISOString().split('T')[0]}`,
+      { paymentId: payment.id, memberId }
+    );
 
     return NextResponse.json({
       ...payment,

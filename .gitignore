@@ -69,5 +69,5 @@ mini-services/**/node_modules/
 # Tool results
 /tool-results/
 
-# Generated icons (keep them but ignore raw intermediates)
+# Raw generated icon (intermediate, resized versions are committed)
 public/icon-512.png
