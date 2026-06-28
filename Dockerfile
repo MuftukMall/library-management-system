@@ -4,8 +4,9 @@ FROM node:20-slim AS base
 FROM base AS deps
 RUN apt-get update -qq && apt-get install -qq -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci
+COPY package.json ./
+# Use npm install (not ci) since project uses bun lockfile
+RUN npm install
 
 # Build
 FROM base AS builder
